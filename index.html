@@ -416,23 +416,40 @@ function parseCSV(txt){
   end();return rows;
 }
 const num=s=>parseFloat(String(s).replace(/[$,+\s]/g,''));
-const ts=s=>Date.parse(/^\d{4}-\d\d-\d\d \d/.test(s)?s.replace(' ','T'):s);
+// ISO, "2026-10-08 00:01:06", or US "10/08/2026 00:01:06" (Tradovate), all read as local time
+const ts=s=>{
+  const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d\d)(?::(\d\d))?\s*(AM|PM)?$/i.exec(s.trim());
+  if(m){let h=+m[4];if(m[7])h=h%12+(/pm/i.test(m[7])?12:0);return new Date(+m[3],m[1]-1,+m[2],h,+m[5],+(m[6]||0)).getTime()}
+  return Date.parse(/^\d{4}-\d\d-\d\d \d/.test(s)?s.replace(' ','T'):s);
+};
 const secs=s=>{if(!s)return 0;if(/^[\d.]+$/.test(s))return +s;let x=0;s.replace(/([\d.]+)\s*([hms])/gi,(_,v,u)=>{x+=v*{h:3600,m:60,s:1}[u.toLowerCase()]});return x};
 function importCSV(txt){
   const rows=parseCSV(txt.replace(/^\uFEFF/,''));if(rows.length<2)return toast('No rows found');
   const H=rows[0].map(h=>h.trim().toLowerCase()),c={};
   for(const k in ALIAS)c[k]=H.findIndex(h=>ALIAS[k].includes(h));
-  const miss=['close','contract','entry','exit'].filter(k=>c[k]<0);
+  // Tradovate "Performance" export: one row per round trip as a buy and a sell, no side column.
+  // Whichever fill came first is the entry: bought first = long, sold first = short.
+  const P=['buyprice','sellprice','boughttimestamp','soldtimestamp'].map(h=>H.indexOf(h)),perf=P.every(i=>i>=0);
+  const miss=['close','contract','entry','exit'].filter(k=>c[k]<0&&!(perf&&k!=='contract'));
   if(miss.length)return toast('Missing column: '+miss.join(', '));
+  // no account column: file the trades under the account you used last, if there is one
+  let acct='DEFAULT';
+  if(c.account<0){const lt=S.trades.reduce((a,t)=>!a||t.close>a.close?t:a,null);
+    const v=prompt('This file has no account column. Account for these trades:',lt?lt.account:'DEFAULT');
+    if(v===null)return;acct=v.trim()||'DEFAULT'}
   const key=t=>[t.close,t.account,t.contract,t.side,t.qty,t.entry,t.exit].join('|'),seen=new Set(S.trades.map(key)),unk=new Set();
   let add=0,skip=0,last=0;
   rows.slice(1).forEach(r=>{
     const g=k=>c[k]<0?'':(r[c[k]]||'').trim();
-    const close=ts(g('close')),entry=num(g('entry')),exit=num(g('exit')),contract=g('contract').toUpperCase();
+    const contract=g('contract').toUpperCase();let close,entry,exit,op,side;
+    if(perf){
+      const[bp,sp,bt,st]=P.map(i=>(r[i]||'').trim()),b=ts(bt),s=ts(st),short=s<b;
+      side=short?'Short':'Long';entry=num(short?sp:bp);exit=num(short?bp:sp);op=Math.min(b,s);close=Math.max(b,s);
+    }else{close=ts(g('close'));entry=num(g('entry'));exit=num(g('exit'));op=ts(g('open'));side=/short|sell/i.test(g('side'))?'Short':'Long'}
     if(!isFinite(close)||!isFinite(entry)||!isFinite(exit)||!contract){skip++;return}
-    const op=ts(g('open')),m=num(g('mult')),sp=SPEC[root(contract)];
+    const m=num(g('mult')),sp=SPEC[root(contract)];
     if(!(m>0)&&!sp)unk.add(root(contract));
-    const t={id:uid(),account:g('account')||'DEFAULT',contract,side:/short|sell/i.test(g('side'))?'Short':'Long',qty:Math.abs(num(g('qty')))||1,entry,exit,
+    const t={id:uid(),account:g('account')||acct,contract,side,qty:Math.abs(num(g('qty')))||1,entry,exit,
       open:isFinite(op)?op:close-secs(g('dur'))*1000,close,mult:m>0?m:sp||1,fee:Math.abs(num(g('fee')))||0,comm:Math.abs(num(g('comm')))||0,note:g('note')};
     if(seen.has(key(t))){skip++;return}
     seen.add(key(t));S.trades.push(t);add++;last=Math.max(last,close);
