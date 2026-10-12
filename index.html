@@ -357,7 +357,7 @@ function render(){
  <div class="card"><p class="h">Drawdown</p><div class="k">Max drawdown</div><div class="big ${cls(-s.mdd)}">${usd(-s.mdd)}</div>${line(s.under,'cr')}</div>
 </section>
 ${table(T)}
-<footer>Trading day rolls at <select data-f="roll" aria-label="Trading day rollover">${[0,16,17,18].map(h=>`<option value="${h}"${h===S.roll?' selected':''}>${h?pad(h)+':00':'midnight'}</option>`).join('')}</select> local · data lives on this device only
+<footer>Trading day rolls at <select data-f="roll" aria-label="Trading day rollover">${[0,16,17,18].map(h=>`<option value="${h}"${h===S.roll?' selected':''}>${h?pad(h)+':00':'midnight'}</option>`).join('')}</select> local · saved on this device · SYNC shares it across your devices
  <button data-a="bak">BACKUP JSON</button><button data-a="clear">CLEAR ALL</button></footer>`;
 }
 
