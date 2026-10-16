@@ -179,9 +179,12 @@ const r2=v=>Math.round(v*100)/100;
 const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const pd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
 const dtl=ms=>{const d=new Date(ms);return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
-const dlabel=s=>pd(s).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-const tfmt=ms=>new Date(ms).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
-const usd=(v,plus)=>(v<0?'-':plus&&v>0?'+':'')+'$'+Math.abs(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+// formatters made once: toLocaleString builds a new one on every call, which adds up over long tables and charts
+const FMT={dmy:new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric'}),dt:new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),
+  n0:new Intl.NumberFormat('en-US',{maximumFractionDigits:0}),n1:new Intl.NumberFormat('en-US',{maximumFractionDigits:1}),n2:new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})};
+const dlabel=s=>FMT.dmy.format(pd(s));
+const tfmt=ms=>FMT.dt.format(ms);
+const usd=(v,plus)=>(v<0?'-':plus&&v>0?'+':'')+'$'+FMT.n2.format(Math.abs(v));
 const usd0=v=>(v<0?'-':'')+'$'+Math.abs(Math.round(v)).toLocaleString('en-US');
 const px=v=>{const s=String(v);return s.includes('.')&&s.split('.')[1].length>2?s:v.toFixed(2)};
 const cls=v=>v>0?'pos':v<0?'neg':'dim';
@@ -243,7 +246,16 @@ function gauge(segs,label){
   const arcs=segs.map(([v,c])=>{const a=`<path class="${c}" d="${ARC}" pathLength="100" stroke-dasharray="${(v*100).toFixed(2)} 100" stroke-dashoffset="${(-off*100).toFixed(2)}"/>`;off+=v;return a}).join('');
   return `<svg class="gauge" viewBox="0 0 124 70"><path class="s0" d="${ARC}"/>${arcs}<text x="62" y="60" text-anchor="middle">${label}</text></svg>`;
 }
+// a chart is ~600 px wide: more points than that only costs time and memory. Keep each bucket's low and high, in
+// order, so peaks and drawdowns still show.
+function thin(v,max=300){
+  if(v.length<=max)return v;
+  const out=[],b=v.length/(max/2);
+  for(let i=0;i<v.length;i+=b){const s=v.slice(Math.floor(i),Math.floor(i+b));if(!s.length)continue;let lo=0,hi=0;s.forEach((x,j)=>{if(x<s[lo])lo=j;if(x>s[hi])hi=j});out.push(...(lo<hi?[s[lo],s[hi]]:[s[hi],s[lo]]))}
+  out.push(v[v.length-1]);return out;
+}
 function line(vals,c){
+  vals=thin(vals);
   const w=600,h=160,p=6,n=vals.length;if(n<2)return ND;
   const lo=Math.min(0,...vals),hi=Math.max(0,...vals),rg=hi-lo||1;
   const x=i=>(p+i*(w-2*p)/(n-1)).toFixed(1),y=v=>(p+(hi-v)*(h-2*p)/rg).toFixed(1);
