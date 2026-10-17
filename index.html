@@ -87,6 +87,7 @@ button:hover,select:hover{border-color:var(--amber);color:var(--amber)}
 .eqs{display:flex;gap:22px;flex-wrap:wrap}
 .eqs div{display:flex;flex-direction:column;gap:2px}
 .chart{display:block;width:100%;height:160px}
+.cap{font-size:10.5px;color:var(--dim);margin-top:6px;letter-spacing:.04em}
 .chart *{vector-effect:non-scaling-stroke}
 .chart .ln{fill:none;stroke-width:1.5}
 .hl{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:4px}
@@ -141,6 +142,7 @@ h1.brand{margin:0}
     <input id="file" type="file" accept=".csv,.json,text/csv,application/json" hidden>
   </div>
 </header>
+<div id="top"></div>
 <div class="bar">
   <select data-f="acct" aria-label="Account"></select>
   <select data-f="stat" aria-label="Outcome">
@@ -251,21 +253,20 @@ function gauge(segs,label){
 }
 // a chart is ~600 px wide: more points than that only costs time and memory. Keep each bucket's low and high, in
 // order, so peaks and drawdowns still show.
-function thin(v,max=300){
-  if(v.length<=max)return v;
-  const out=[],b=v.length/(max/2);
-  for(let i=0;i<v.length;i+=b){const s=v.slice(Math.floor(i),Math.floor(i+b));if(!s.length)continue;let lo=0,hi=0;s.forEach((x,j)=>{if(x<s[lo])lo=j;if(x>s[hi])hi=j});out.push(...(lo<hi?[s[lo],s[hi]]:[s[hi],s[lo]]))}
-  out.push(v[v.length-1]);return out;
-}
+// long ranges: average runs of k neighbours so every bar or point stays readable on a phone (the newest run ends
+// on the latest value). Returns the values and k, so the chart can say what one bar stands for.
+function bucket(v,max){const n=v.length;if(n<=max)return{v,k:1};const k=Math.ceil(n/max),o=[];for(let e=n;e>0;e-=k){const s=v.slice(Math.max(0,e-k),e);o.unshift(s.reduce((a,x)=>a+(+x||0),0)/s.length)}return{v:o,k}}
+const cap=(k,what='days')=>k>1?`<div class="cap">Each bar averages ${k} ${what}</div>`:'';
 function line(vals,c){
-  vals=thin(vals);
+  vals=bucket(vals,120).v;
   const w=600,h=160,p=6,n=vals.length;if(n<2)return ND;
   const lo=Math.min(0,...vals),hi=Math.max(0,...vals),rg=hi-lo||1;
   const x=i=>(p+i*(w-2*p)/(n-1)).toFixed(1),y=v=>(p+(hi-v)*(h-2*p)/rg).toFixed(1);
   const pts=vals.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
   return `<svg class="chart ${c}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon class="ar" points="${x(0)},${y(0)} ${pts} ${x(n-1)},${y(0)}"/><line class="z" x1="0" x2="${w}" y1="${y(0)}" y2="${y(0)}"/><polyline class="ln" points="${pts}"/></svg>`;
 }
-function bars(vals,signed){
+function bars(vals,signed){const B=bucket(vals,60);return bars0(B.v,signed)+cap(B.k)}
+function bars0(vals,signed){
   const w=600,h=160,p=6,n=vals.length;if(!n)return ND;
   const lo=Math.min(0,...vals),hi=Math.max(0,...vals),rg=hi-lo||1,step=(w-2*p)/n,bw=Math.min(180,step*.7);
   const y=v=>p+(hi-v)*(h-2*p)/rg;
@@ -341,7 +342,8 @@ function render(){
   $('[data-f=range]').innerHTML=Object.entries(RANGES).map(([k,v])=>`<option value="${k}"${k===U.range?' selected':''}>${v}</option>`).join('')+(U.range in RANGES?'':`<option value="${U.range}" selected>${dlabel(U.range)}</option>`);
   $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(nd?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk[nd-1])}`:'');
 
-  $('#app').innerHTML=heroToday()+`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: 200 trades from a profitable trader (1:3 risk-reward).</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
+  $('#top').innerHTML=heroToday();
+  $('#app').innerHTML=`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: 200 trades from a profitable trader (1:3 risk-reward).</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
 <section class="g g4">
  <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${n}</div>
   ${gauge([[n?s.w/n:0,'sg'],[n?s.be/n:0,'sd'],[n?s.l/n:0,'sr']],n?Math.round(s.wr)+'%':'—')}
@@ -584,7 +586,7 @@ function heroToday(){
     action:{label:'+ Trade',attrs:{'data-a':'add'}},
     log:T.map(x=>({at:x.close,tag:`${x.side} ${x.contract}`,text:`×${x.qty} · ${usd(net(x),1)}`,tone:net(x)>0?'pos':net(x)<0?'neg':''}))});
 }
-{const r0=render;render=function(...a){r0.apply(this,a);UI.animate($('#app'))};UI.animate($('#app'))}
+{const r0=render;render=function(...a){r0.apply(this,a);UI.animate($('#app'));UI.animate($('#top'))};UI.animate($('#top'));UI.animate($('#app'))}
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
