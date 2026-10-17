@@ -589,12 +589,14 @@ addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.isx
 function heroToday(){
   if(!S.trades.length)return '';
   const t=tday(Date.now()),T=S.trades.filter(x=>tday(x.close)===t).sort((a,b)=>a.close-b.close),pnl=T.reduce((a,x)=>a+net(x),0),w=T.filter(x=>net(x)>0).length;
-  const d=new Date(t+'T12:00:00');d.setDate(d.getDate()-d.getDay());const ws=ymd(d),D={};
+  // a trading week runs Monday to Friday: Saturday and Sunday (incl. Saturday evening after the roll) still show the
+  // week that just ended, instead of an empty new one
+  const d=new Date(t+'T12:00:00'),wkend=d.getDay()===0||d.getDay()===6;d.setDate(d.getDate()-(d.getDay()+6)%7);const ws=ymd(d),D={};
   S.trades.forEach(x=>{const k=tday(x.close);if(k>=ws&&k<=t)D[k]=(D[k]||0)+net(x)});
   const days=Object.values(D),green=days.filter(v=>v>0).length,wk=days.reduce((a,v)=>a+v,0);
-  return UI.hero({key:'journal',title:'Today',sub:T.length?`${T.length} trade${T.length>1?'s':''} · ${w} won · week ${usd(wk,1)}`:`No trades yet today · week ${usd(wk,1)}`,
-    big:{value:usd(pnl,1),label:'net today'},
-    rings:[{key:'wr',label:'Win rate',value:T.length?Math.round(w/T.length*100):0,max:100,display:T.length?`${Math.round(w/T.length*100)}%`:'—',done:false},{key:'green',label:'Green days',value:green,max:Math.max(1,days.length),display:`${green}/${days.length} this wk`,done:false}],
+  return UI.hero({key:'journal',title:'Today',sub:T.length?`${T.length} trade${T.length>1?'s':''} · ${w} won · week ${usd(wk,1)}`:wkend?'Weekend · markets closed':`No trades yet today · week ${usd(wk,1)}`,
+    big:!T.length&&wkend?{value:usd(wk,1),label:'this week'}:{value:usd(pnl,1),label:'net today'},
+    rings:[{key:'wr',label:'Win rate',value:T.length?Math.round(w/T.length*100):0,max:100,display:T.length?`${Math.round(w/T.length*100)}%`:'—',done:false},{key:'green',label:'Green days',value:green,max:Math.max(1,days.length),display:days.length?`${green}/${days.length} this wk`:'—',done:false}],
     action:{label:'+ Trade',attrs:{'data-a':'add'}},
     log:T.map(x=>({at:x.close,tag:`${x.side} ${x.contract}`,text:`×${x.qty} · ${usd(net(x),1)}`,tone:net(x)>0?'pos':net(x)<0?'neg':''}))});
 }
