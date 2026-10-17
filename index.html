@@ -139,6 +139,7 @@ h1.brand{margin:0}
     <button class="pri" data-a="add">+ TRADE</button>
     <button data-a="imp">IMPORT</button>
     <button data-a="note">NOTES</button>
+    <button data-a="set">SETTINGS</button>
     <input id="file" type="file" accept=".csv,.json,text/csv,application/json" hidden>
   </div>
 </header>
@@ -396,9 +397,7 @@ ${(()=>{const B=brk(T),best=a=>{const i=a.indexOf(Math.max(...a));return Math.ma
   ${bars(B.wd,1)}<div class="hl">${DW.map(d=>`<span>${d}</span>`).join('')}</div>
   <div class="ev rule"><span class="dim">Best day / worst day</span><b><span class="pos">${bd==null?'—':DW[bd]}</span> / <span class="neg">${wdd==null?'—':DW[wdd]}</span></b></div></div>
 </section>`})()}
-${table(T)}
-<footer>Trading day rolls at <select data-f="roll" aria-label="Trading day rollover">${[0,16,17,18].map(h=>`<option value="${h}"${h===S.roll?' selected':''}>${h?pad(h)+':00':'midnight'}</option>`).join('')}</select> local · saved on this device · SYNC shares it across your devices
- <button data-a="bak">BACKUP JSON</button><button data-a="clear">CLEAR ALL</button></footer>`;
+${table(T)}`;
 }
 
 /* ---------- dialogs ---------- */
@@ -538,7 +537,20 @@ function sample(){
 }
 
 /* ---------- events ---------- */
+/* ---------- settings: everything that used to sit in the footer, behind the header's SETTINGS button ---------- */
+function settingsForm(){
+  dlg.innerHTML=`<h3>SETTINGS</h3>
+  <div class="ui-set">
+    <div><span><b>Trading day</b><small>When a new trading day starts (local time)</small></span><select data-f="roll" aria-label="Trading day rollover">${[0,16,17,18].map(h=>`<option value="${h}"${h===S.roll?' selected':''}>${h?pad(h)+':00':'midnight'}</option>`).join('')}</select></div>
+    <div><span><b>Sync</b><small>${window.ISXSync?.state==='ok'?'On · this app syncs across your devices':'Keep every app the same on all your devices'}</small></span><span class="ui-set-btns"><button type="button" data-a="sync">SYNC…</button></span></div>
+    <div><span><b>Backup</b><small>Saved on this device. Download a copy, or restore one.</small></span><span class="ui-set-btns"><button type="button" data-a="bak">BACKUP JSON</button><button type="button" data-a="imp">RESTORE</button></span></div>
+    <div><span><b>Delete everything</b><small>Removes all of this app's data on this device.</small></span><span class="ui-set-btns"><button type="button" class="ui-danger" data-a="clear">CLEAR ALL</button></span></div>
+  </div>
+  <div class="fa2"><button type="button" class="pri" data-a="x">DONE</button></div>`;
+  dlg.showModal();
+}
 const ACT={
+  set:()=>settingsForm(),sync:()=>{dlg.close();document.getElementById('isx-sync')?.click()},
   add:()=>tradeForm(),imp:()=>$('#file').click(),x:()=>dlg.close(),sample,csv:exportCSV,
   note:()=>noteForm(U.range in RANGES?tday(Date.now()):U.range),
   bak:()=>dl(`journal-backup-${ymd(new Date())}.json`,JSON.stringify(S),'application/json'),
