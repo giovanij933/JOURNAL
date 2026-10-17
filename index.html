@@ -581,8 +581,8 @@ function heroToday(){
   return UI.hero({key:'journal',title:'Today',sub:T.length?`${T.length} trade${T.length>1?'s':''} · ${w} won · week ${usd(wk,1)}`:`No trades yet today · week ${usd(wk,1)}`,
     big:{value:usd(pnl,1),label:'net today'},
     rings:[{key:'wr',label:'Win rate',value:T.length?Math.round(w/T.length*100):0,max:100,display:T.length?`${Math.round(w/T.length*100)}%`:'—',done:false},{key:'green',label:'Green days',value:green,max:Math.max(1,days.length),display:`${green}/${days.length} this wk`,done:false}],
-    action:{label:'+ Trade',attrs:{'data-a':'add'}}})
-  +UI.timeline({items:T.map(x=>({at:x.close,tag:`${x.side} ${x.contract}`,text:`×${x.qty} · ${usd(net(x),1)}`,tone:net(x)>0?'pos':net(x)<0?'neg':''})),empty:'No trades yet today. Add or import them and they show up here.'});
+    action:{label:'+ Trade',attrs:{'data-a':'add'}},
+    log:T.map(x=>({at:x.close,tag:`${x.side} ${x.contract}`,text:`×${x.qty} · ${usd(net(x),1)}`,tone:net(x)>0?'pos':net(x)<0?'neg':''}))});
 }
 {const r0=render;render=function(...a){r0.apply(this,a);UI.animate($('#app'))};UI.animate($('#app'))}
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
