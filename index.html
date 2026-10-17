@@ -15,6 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="ui.css">
 <style>
 :root{
   color-scheme:dark;
@@ -152,6 +153,7 @@ textarea{resize:vertical}
 <div id="toast" role="status"></div>
 
 <script src="sync.js" data-keys="isx.journal.v1"></script>
+<script src="ui.js"></script>
 <script>
 'use strict';
 const KEY='isx.journal.v1', PAGE=20;
@@ -338,7 +340,7 @@ function render(){
   $('[data-f=range]').innerHTML=Object.entries(RANGES).map(([k,v])=>`<option value="${k}"${k===U.range?' selected':''}>${v}</option>`).join('')+(U.range in RANGES?'':`<option value="${U.range}" selected>${dlabel(U.range)}</option>`);
   $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(nd?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk[nd-1])}`:'');
 
-  $('#app').innerHTML=`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: 200 trades from a profitable trader (1:3 risk-reward).</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
+  $('#app').innerHTML=heroToday()+`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: 200 trades from a profitable trader (1:3 risk-reward).</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
 <section class="g g4">
  <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${n}</div>
   ${gauge([[n?s.w/n:0,'sg'],[n?s.be/n:0,'sd'],[n?s.l/n:0,'sr']],n?Math.round(s.wr)+'%':'—')}
@@ -568,6 +570,20 @@ boot();
 function doAct(a){if(!/^\w+$/.test(a||''))return;const b=document.querySelector(`[data-a="${a}"],[data-act="${a}"]`);if(b)b.click()}
 addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.isx==='do')doAct(e.data.act)});
 {const m=/do=(\w+)/.exec(location.hash);if(m){history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>doAct(m[1]),0)}}
+/* ---------- today at a glance (shared hero, timeline and motion from ui.js) ---------- */
+function heroToday(){
+  if(!S.trades.length)return '';
+  const t=tday(Date.now()),T=S.trades.filter(x=>tday(x.close)===t).sort((a,b)=>a.close-b.close),pnl=T.reduce((a,x)=>a+net(x),0),w=T.filter(x=>net(x)>0).length;
+  const d=new Date(t+'T12:00:00');d.setDate(d.getDate()-d.getDay());const ws=ymd(d),D={};
+  S.trades.forEach(x=>{const k=tday(x.close);if(k>=ws&&k<=t)D[k]=(D[k]||0)+net(x)});
+  const days=Object.values(D),green=days.filter(v=>v>0).length,wk=days.reduce((a,v)=>a+v,0);
+  return UI.hero({key:'journal',title:'Today',sub:T.length?`${T.length} trade${T.length>1?'s':''} · ${w} won · week ${usd(wk,1)}`:`No trades yet today · week ${usd(wk,1)}`,
+    big:{value:usd(pnl,1),label:'net today'},
+    rings:[{key:'wr',label:'Win rate',value:T.length?Math.round(w/T.length*100):0,max:100,display:T.length?`${Math.round(w/T.length*100)}%`:'—',done:false},{key:'green',label:'Green days',value:green,max:Math.max(1,days.length),display:`${green}/${days.length} this wk`,done:false}],
+    action:{label:'+ Trade',attrs:{'data-a':'add'}}})
+  +UI.timeline({items:T.map(x=>({at:x.close,tag:`${x.side} ${x.contract}`,text:`×${x.qty} · ${usd(net(x),1)}`,tone:net(x)>0?'pos':net(x)<0?'neg':''})),empty:'No trades yet today. Add or import them and they show up here.'});
+}
+{const r0=render;render=function(...a){r0.apply(this,a);UI.animate($('#app'))};UI.animate($('#app'))}
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
