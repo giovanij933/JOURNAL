@@ -97,6 +97,15 @@ button:hover,select:hover{border-color:var(--amber);color:var(--amber)}
 .cg .ln{stroke:var(--green)}.cg .ar{fill:rgba(51,255,102,.1)}
 .cr .ln{stroke:var(--red)}.cr .ar{fill:rgba(255,69,69,.1)}
 .fp{fill:var(--green)}.fn{fill:var(--red)}.fa{fill:var(--amber)}
+/* cross-filters: anything with .pick narrows every card and the log; the filters show as chips under the bar */
+.pick{cursor:pointer}.pick:focus-visible{outline:1px solid var(--amber);outline-offset:2px}
+.lg.pick,.ev.pick{margin:0 -6px;padding-left:6px;padding-right:6px}.lg.pick:hover,.ev.pick:hover,.hb.pick:hover{background:#121212}
+.lg.on,.ev.on{background:#1a1406;box-shadow:inset 2px 0 0 var(--amber)}
+.gauge path.pick:hover{filter:brightness(1.3)}.gauge path.off,.chart .off{opacity:.25}
+.chart rect.pick:hover{filter:brightness(1.35)}.chart .hit{fill:transparent}.chart .hit:hover{fill:rgba(255,176,0,.08)}
+.xf{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-4px 0 12px}
+.xf span{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-right:2px}
+.xf button{border-color:var(--amber);color:var(--amber);padding:5px 8px}.xf button b{font-weight:600}.xf .clr{border-color:var(--line2);color:var(--dim)}
 .nd{height:160px;display:grid;place-items:center;color:var(--dim);letter-spacing:.14em;font-size:11px}
 .radar{display:block;width:100%;max-width:230px;margin:0 auto}
 .radar .rg{fill:none;stroke:var(--line2)}
@@ -159,11 +168,12 @@ h1.brand{margin:0}
 <div class="bar">
   <select data-f="acct" aria-label="Account"></select>
   <select data-f="stat" aria-label="Outcome">
-    <option value="all">All outcomes</option><option value="win">Wins</option><option value="loss">Losses</option>
+    <option value="all">All outcomes</option><option value="win">Wins</option><option value="be">Breakeven</option><option value="loss">Losses</option>
   </select>
   <select data-f="range" aria-label="Range"></select>
   <span id="scope" class="dim"></span>
 </div>
+<div id="xf" class="xf" hidden></div>
 <main id="app"></main>
 <dialog id="dlg"></dialog>
 <div id="toast" role="status"></div>
@@ -214,7 +224,7 @@ const net=t=>r2((t.exit-t.entry)*(t.side==='Short'?-1:1)*t.qty*t.mult-t.fee-t.co
 
 /* ---------- state ---------- */
 let S=load();
-const U={acct:'all',stat:'all',range:'all',page:0,month:null};
+const U={acct:'all',stat:'all',range:'all',page:0,month:null,x:{}};   // x: cross-filters set by clicking a card (dres, hour, wd, inst, side)
 function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.trades))return {trades:s.trades,notes:s.notes||{},roll:s.roll??18}}catch(e){}
   return {trades:[],notes:{},roll:18};
@@ -225,12 +235,18 @@ function tday(ms){const d=new Date(ms);if(S.roll&&d.getHours()>=S.roll)d.setDate
 function setMonth(ms){const d=pd(tday(ms));U.month={y:d.getFullYear(),m:d.getMonth()}}
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
 
-function view(useRange=true){
+// skip leaves one filter out: a card that sets a filter shows everything else, with its own choice highlighted
+const res=v=>v>0?'win':v<0?'loss':'be',ohr=t=>new Date(t.open||t.close).getHours(),owd=t=>new Date(t.open||t.close).getDay();
+function view(useRange=true,skip=''){
   const today=tday(Date.now()),wk=s=>{const d=pd(s);d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)}   /* trading week: Monday first */;
   const inR=d=>U.range==='all'||(U.range==='today'?d===today:U.range==='week'?wk(d)===wk(today):U.range==='month'?d.slice(0,7)===today.slice(0,7):d===U.range);
-  return S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)}))
-    .filter(t=>(U.acct==='all'||t.account===U.acct)&&(U.stat==='all'||(U.stat==='win'?t.pnl>0:t.pnl<0))&&(!useRange||inR(t.day)))
-    .sort((a,b)=>a.close-b.close);
+  const x=U.x,on=k=>k!==skip&&x[k]!=null;
+  let T=S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)}))
+    .filter(t=>(U.acct==='all'||t.account===U.acct)&&(skip==='stat'||U.stat==='all'||res(t.pnl)===U.stat)&&(!useRange||inR(t.day))
+      &&(!on('hour')||ohr(t)===x.hour)&&(!on('wd')||owd(t)===x.wd)&&(!on('inst')||root(t.contract)===x.inst)&&(!on('side')||t.side===x.side));
+  // green / red / flat days: decided by the day's net over the trades the other filters leave
+  if(on('dres')){const D={};T.forEach(t=>D[t.day]=(D[t.day]||0)+t.pnl);T=T.filter(t=>res(r2(D[t.day]))===x.dres)}
+  return T.sort((a,b)=>a.close-b.close);
 }
 
 function stats(T){
@@ -259,42 +275,51 @@ function stats(T){
 
 /* ---------- svg ---------- */
 const ARC='M12 62A50 50 0 0 1 112 62', ND='<div class="nd">NO DATA_</div>';
+// a segment can carry a cross-filter (f = 'key:value'): click it to filter, and it stays bright while the others dim
 function gauge(segs,label){
   let off=0;
-  const arcs=segs.map(([v,c])=>{const a=`<path class="${c}" d="${ARC}" pathLength="100" stroke-dasharray="${(v*100).toFixed(2)} 100" stroke-dashoffset="${(-off*100).toFixed(2)}"/>`;off+=v;return a}).join('');
+  const arcs=segs.map(([v,c,f,t])=>{const a=`<path class="${c}${f?' pick'+(xoff(f)?' off':''):''}" d="${ARC}" pathLength="100" stroke-dasharray="${(v*100).toFixed(2)} 100" stroke-dashoffset="${(-off*100).toFixed(2)}"${f?` data-a="xf" data-v="${f}"`:''}>${t?`<title>${esc(t)}</title>`:''}</path>`;off+=v;return a}).join('');
   return `<svg class="gauge" viewBox="0 0 124 70"><path class="s0" d="${ARC}"/>${arcs}<text x="62" y="60" text-anchor="middle">${label}</text></svg>`;
 }
 // a chart is ~600 px wide: more points than that only costs time and memory. Keep each bucket's low and high, in
 // order, so peaks and drawdowns still show.
 // long ranges: average runs of k neighbours so every bar or point stays readable on a phone (the newest run ends
 // on the latest value). Returns the values and k, so the chart can say what one bar stands for.
-function bucket(v,max){const n=v.length;if(n<=max)return{v,k:1};const k=Math.ceil(n/max),o=[];for(let e=n;e>0;e-=k){const s=v.slice(Math.max(0,e-k),e);o.unshift(s.reduce((a,x)=>a+(+x||0),0)/s.length)}return{v:o,k}}
+function bucket(v,max){const n=v.length;if(n<=max)return{v,k:1,r:v.map((_,i)=>[i,i+1])};const k=Math.ceil(n/max),o=[],r=[];for(let e=n;e>0;e-=k){const a=Math.max(0,e-k),s=v.slice(a,e);o.unshift(s.reduce((a,x)=>a+(+x||0),0)/s.length);r.unshift([a,e])}return{v:o,k,r}}
 const cap=(k,what='days')=>k>1?`<div class="cap">Each bar averages ${k} ${what}</div>`:'';
-function line(vals,c){
-  vals=bucket(vals,120).v;
+// at(i0,i1) → {a, title} for the stretch of points one column stands for: what clicking it does, what hovering says
+// the click areas are paths, not rects, so UI.animate's bar growth leaves them alone
+const hit=m=>m?`${m.a?` class="hit pick" ${m.a}`:' class="hit"'}><title>${esc(m.title)}</title></path>`:' class="hit"/>';
+function line(vals,c,at){
+  const B=bucket(vals,120);vals=B.v;
   const w=600,h=160,p=6,n=vals.length;if(n<2)return ND;
   const lo=Math.min(0,...vals),hi=Math.max(0,...vals),rg=hi-lo||1;
   const x=i=>(p+i*(w-2*p)/(n-1)).toFixed(1),y=v=>(p+(hi-v)*(h-2*p)/rg).toFixed(1);
   const pts=vals.map((v,i)=>`${x(i)},${y(v)}`).join(' ');
-  return `<svg class="chart ${c}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon class="ar" points="${x(0)},${y(0)} ${pts} ${x(n-1)},${y(0)}"/><line class="z" x1="0" x2="${w}" y1="${y(0)}" y2="${y(0)}"/><polyline class="ln" points="${pts}"/></svg>`;
+  const cw=(w-2*p)/(n-1),hits=at?vals.map((_,i)=>`<path d="M${Math.max(0,x(i)-cw/2).toFixed(1)} 0h${cw.toFixed(1)}v${h}h-${cw.toFixed(1)}z"${hit(at(...B.r[i]))}`).join(''):'';
+  return `<svg class="chart ${c}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon class="ar" points="${x(0)},${y(0)} ${pts} ${x(n-1)},${y(0)}"/><line class="z" x1="0" x2="${w}" y1="${y(0)}" y2="${y(0)}"/><polyline class="ln" points="${pts}"/>${hits}</svg>`;
 }
-function bars(vals,signed){const B=bucket(vals,60);return bars0(B.v,signed)+cap(B.k)}
-function bars0(vals,signed){
+function bars(vals,signed,at){const B=bucket(vals,60);return bars0(B.v,signed,at&&(i=>at(...B.r[i])))+cap(B.k)}
+function bars0(vals,signed,at){
   const w=600,h=160,p=6,n=vals.length;if(!n)return ND;
   const lo=Math.min(0,...vals),hi=Math.max(0,...vals),rg=hi-lo||1,step=(w-2*p)/n,bw=Math.min(180,step*.7);
   const y=v=>p+(hi-v)*(h-2*p)/rg;
-  return `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${vals.map((v,i)=>`<rect class="${signed?(v<0?'fn':'fp'):'fa'}" x="${(p+i*step+(step-bw)/2).toFixed(1)}" y="${Math.min(y(0),y(v)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1,Math.abs(y(v)-y(0))).toFixed(1)}"/>`).join('')}<line class="z" x1="0" x2="${w}" y1="${y(0)}" y2="${y(0)}"/></svg>`;
+  // with at(i), each bar gets a full-height column to click or hover, and dims unless it's the one chosen (m.on)
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${vals.map((v,i)=>{const m=at&&at(i);return `<rect class="${signed?(v<0?'fn':'fp'):'fa'}${m&&m.off?' off':''}" x="${(p+i*step+(step-bw)/2).toFixed(1)}" y="${Math.min(y(0),y(v)).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(1,Math.abs(y(v)-y(0))).toFixed(1)}"/>`+(m?`<path d="M${(p+i*step).toFixed(1)} 0h${step.toFixed(1)}v${h}h-${step.toFixed(1)}z"${hit(m)}`:'')}).join('')}<line class="z" x1="0" x2="${w}" y1="${y(0)}" y2="${y(0)}"/></svg>`;
 }
-function radar(ax){
+function radar(ax,tips=[]){
   const cx=100,cy=92,R=68,ang=[-90,30,150].map(a=>a*Math.PI/180);
   const pt=(i,f)=>`${(cx+Math.cos(ang[i])*R*f).toFixed(1)},${(cy+Math.sin(ang[i])*R*f).toFixed(1)}`;
   const poly=(c,fs)=>`<polygon class="${c}" points="${fs.map((f,i)=>pt(i,f)).join(' ')}"/>`;
-  return `<svg class="radar" viewBox="0 0 200 160">${[.25,.5,.75,1].map(f=>poly('rg',[f,f,f])).join('')}${poly('rv',ax.map(v=>Math.max(v,3)/100))}<text x="100" y="14" text-anchor="middle">WIN/LOSS</text><text x="168" y="144" text-anchor="middle">WIN %</text><text x="30" y="144" text-anchor="middle">PF</text></svg>`;
+  return `<svg class="radar" viewBox="0 0 200 160">${[.25,.5,.75,1].map(f=>poly('rg',[f,f,f])).join('')}${poly('rv',ax.map(v=>Math.max(v,3)/100))}<text x="100" y="14" text-anchor="middle">WIN/LOSS<title>${esc(tips[0]||'')}</title></text><text x="168" y="144" text-anchor="middle">WIN %<title>${esc(tips[1]||'')}</title></text><text x="30" y="144" text-anchor="middle">PF<title>${esc(tips[2]||'')}</title></text></svg>`;
 }
 
 /* ---------- render ---------- */
-const lg=(dot,label,a,b='')=>`<div class="lg"><i class="dot ${dot}"></i><span>${label}</span><b>${a}</b><em>${b}</em></div>`;
-const ev=(label,val,v)=>`<div class="ev"><span><i class="dot ${v>0?'bgp':v<0?'bgn':'bgd'}"></i> ${label}</span><b class="${v>0?'pos':v<0?'neg':''}">${val}</b></div>`;
+// f = 'key:value' makes the row a cross-filter: click (or Enter) to narrow everything to it, again to clear it
+const xval=k=>k==='stat'?(U.stat==='all'?null:U.stat):U.x[k];
+const xon=f=>{const[k,v]=f.split(':');return xval(k)!=null&&String(xval(k))===v},xoff=f=>{const k=f.split(':')[0];return xval(k)!=null&&!xon(f)};
+const lg=(dot,label,a,b='',f)=>`<div class="lg${f?' pick'+(xon(f)?' on':''):''}"${f?` role="button" tabindex="0" aria-pressed="${xon(f)}" data-a="xf" data-v="${f}"`:''}><i class="dot ${dot}"></i><span>${label}</span><b>${a}</b><em>${b}</em></div>`;
+const ev=(label,val,v,a,f)=>`<div class="ev${a||f?' pick':''}${f&&xon(f)?' on':''}"${a?` role="button" tabindex="0" ${a}`:f?` role="button" tabindex="0" aria-pressed="${xon(f)}" data-a="xf" data-v="${f}"`:''}><span><i class="dot ${v>0?'bgp':v<0?'bgn':'bgd'}"></i> ${label}</span><b class="${v>0?'pos':v<0?'neg':''}">${val}</b></div>`;
 const kv=(k,v)=>`<div><span class="k">${k}</span><b>${v}</b></div>`;
 const fx=v=>v==null?'—':v.toFixed(2);
 
@@ -350,38 +375,55 @@ function brk(T){
   T.forEach(t=>{const d=new Date(t.open||t.close);hours[d.getHours()]+=t.pnl;wd[d.getDay()]+=t.pnl});
   return {inst:Object.entries(by(t=>root(t.contract))).sort((a,b)=>b[1].pnl-a[1].pnl),side:by(t=>t.side),hours:hours.map(r2),wd:wd.map(r2)};
 }
+// chart columns → their day: bars per trading day (Performance, Volume) and points per trade (Equity, Drawdown)
+const dayAt=(dk,vals,fmt)=>(i0,i1)=>{const a=dk[i0],b=dk[i1-1],one=i1-i0===1;
+  return{a:one?`data-a="day" data-v="${a}"`:'',title:one?`${dlabel(a)}: ${fmt(vals[i0])} — click to show this day`:`${dlabel(a)} – ${dlabel(b)}`,off:/^\d{4}-/.test(U.range)&&one&&a!==U.range}};
+const tradeAt=(T,vals,what)=>(i0,i1)=>{const t=i1>1&&T[i1-2];if(!t)return null;   // point 0 is the start, before any trade
+  return{a:`data-a="day" data-v="${t.day}"`,title:`${dlabel(t.day)}${i1-i0>1?'':` · ${t.side} ${t.contract} ${usd(t.pnl,1)}`} · ${what} ${usd(vals[i1-1],1)} — click to show this day`}};
+// the active filters, as chips under the bar: click one to drop it
+function xfBar(){
+  const DW=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],R={win:'Wins',be:'Breakeven',loss:'Losses'},D={win:'Green days',be:'Flat days',loss:'Red days'};
+  const c=[U.stat!=='all'&&['stat',R[U.stat]],U.x.dres&&['dres',D[U.x.dres]],U.x.hour!=null&&['hour','Entry '+new Date(2000,0,1,U.x.hour).toLocaleTimeString('en-US',{hour:'numeric'})],
+    U.x.wd!=null&&['wd',DW[U.x.wd]],U.x.inst&&['inst',esc(U.x.inst)],U.x.side&&['side',U.x.side],/^\d{4}-/.test(U.range)&&['range',dlabel(U.range)]].filter(Boolean);
+  const el=$('#xf');el.hidden=!c.length;
+  el.innerHTML=c.length?`<span>Filtered</span>${c.map(([k,l])=>`<button data-a="xclr" data-v="${k}" aria-label="Remove filter: ${l}"><b>${l}</b> ×</button>`).join('')}${c.length>1?'<button class="clr" data-a="xall">Clear all</button>':''}`:'';
+}
 function render(){
   const accts=[...new Set(S.trades.map(t=>t.account))].sort();
   if(U.acct!=='all'&&!accts.includes(U.acct))U.acct='all';
-  const T=view(),s=stats(T),n=s.n,nd=s.dk.length,bd=nd-s.dw-s.dl;
+  const T=view(),s=stats(T),n=s.n;
+  // the outcome cards (Wins, Profit factor, Avg win/loss) leave out the outcome filter, Day wins the day filter
+  const sw=stats(view(true,'stat')),sd=stats(view(true,'dres')),nw=sw.n,nd=sd.dk.length,bd=nd-sd.dw-sd.dl,dday=k=>T.find(t=>t.day===k);
   const pct=(a,b)=>b?Math.round(a/b*100)+'%':'0%';
-  const pfT=s.pf==null?'—':s.pf===Infinity?'&infin;':s.pf.toFixed(2),gs=s.gp+s.gl,mx=Math.max(s.aw,s.al)||1;
+  const pfx=v=>v==null?'—':v===Infinity?'&infin;':v.toFixed(2),pfT=pfx(s.pf),pfW=pfx(sw.pf),gs=sw.gp+sw.gl,mx=Math.max(sw.aw,sw.al)||1;
+  $('[data-f=stat]').value=U.stat;xfBar();
   $('[data-f=acct]').innerHTML='<option value="all">All accounts</option>'+accts.map(a=>`<option${a===U.acct?' selected':''}>${esc(a)}</option>`).join('');
   $('[data-f=range]').innerHTML=Object.entries(RANGES).map(([k,v])=>`<option value="${k}"${k===U.range?' selected':''}>${v}</option>`).join('')+(U.range in RANGES?'':`<option value="${U.range}" selected>${dlabel(U.range)}</option>`);
-  $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(nd?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk[nd-1])}`:'');
+  $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(s.dk.length?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk.at(-1))}`:'');
 
   $('#top').innerHTML=heroToday();
   $('#app').innerHTML=`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: 200 trades from a profitable trader (1:3 risk-reward).</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
 <section class="g g4">
- <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${n}</div>
-  ${gauge([[n?s.w/n:0,'sg'],[n?s.be/n:0,'sd'],[n?s.l/n:0,'sr']],n?Math.round(s.wr)+'%':'—')}
-  ${lg('bgp','Wins',s.w,pct(s.w,n))}${lg('bgm','Breakeven',s.be,pct(s.be,n))}${lg('bgn','Losses',s.l,pct(s.l,n))}</div>
+ <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${nw}</div>
+  ${gauge([[nw?sw.w/nw:0,'sg','stat:win',`Wins: ${sw.w}`],[nw?sw.be/nw:0,'sd','stat:be',`Breakeven: ${sw.be}`],[nw?sw.l/nw:0,'sr','stat:loss',`Losses: ${sw.l}`]],nw?Math.round(sw.wr)+'%':'—')}
+  ${lg('bgp','Wins',sw.w,pct(sw.w,nw),'stat:win')}${lg('bgm','Breakeven',sw.be,pct(sw.be,nw),'stat:be')}${lg('bgn','Losses',sw.l,pct(sw.l,nw),'stat:loss')}</div>
  <div class="card"><p class="h">Day wins</p><div class="k">Trading days</div><div class="big">${nd}</div>
-  ${gauge([[nd?s.dw/nd:0,'sg'],[nd?bd/nd:0,'sd'],[nd?s.dl/nd:0,'sr']],nd?pct(s.dw,nd):'—')}
-  ${lg('bgp','Win days',s.dw,pct(s.dw,nd))}${lg('bgm','Breakeven days',bd,pct(bd,nd))}${lg('bgn','Loss days',s.dl,pct(s.dl,nd))}</div>
- <div class="card"><p class="h">Profit factor</p><div class="k">Factor</div><div class="big">${pfT}</div>
-  ${gauge([[gs?s.gp/gs:0,'sg'],[gs?s.gl/gs:0,'sr']],pfT)}
-  ${lg('bgp','Profits',usd(s.gp))}${lg('bgn','Losses',usd(s.gl))}${lg('bgd','Net',`<span class="${cls(s.tot)}">${usd(s.tot)}</span>`)}</div>
- <div class="card"><p class="h">Avg win/loss</p><div class="k">Average</div><div class="big ${cls(s.aw-s.al)}">${usd(s.aw-s.al)}</div>
-  <div class="ev"><span>Win</span><b class="pos">${usd(s.aw,1)}</b></div><div class="hb"><i class="bgp" style="width:${(s.aw/mx*100).toFixed(1)}%"></i></div>
-  <div class="ev"><span>Loss</span><b class="neg">${usd(-s.al)}</b></div><div class="hb"><i class="bgn" style="width:${(s.al/mx*100).toFixed(1)}%"></i></div>
-  <div class="ev rule"><span class="dim">Expectancy / trade</span><b class="${cls(s.exp)}">${usd(s.exp)}</b></div></div>
+  ${gauge([[nd?sd.dw/nd:0,'sg','dres:win',`Win days: ${sd.dw}`],[nd?bd/nd:0,'sd','dres:be',`Breakeven days: ${bd}`],[nd?sd.dl/nd:0,'sr','dres:loss',`Loss days: ${sd.dl}`]],nd?pct(sd.dw,nd):'—')}
+  ${lg('bgp','Win days',sd.dw,pct(sd.dw,nd),'dres:win')}${lg('bgm','Breakeven days',bd,pct(bd,nd),'dres:be')}${lg('bgn','Loss days',sd.dl,pct(sd.dl,nd),'dres:loss')}</div>
+ <div class="card"><p class="h">Profit factor</p><div class="k">Factor</div><div class="big">${pfW}</div>
+  ${gauge([[gs?sw.gp/gs:0,'sg','stat:win',`Profits: ${usd(sw.gp)}`],[gs?sw.gl/gs:0,'sr','stat:loss',`Losses: ${usd(sw.gl)}`]],pfW)}
+  ${lg('bgp','Profits',usd(sw.gp),'','stat:win')}${lg('bgn','Losses',usd(sw.gl),'','stat:loss')}${lg('bgd','Net',`<span class="${cls(sw.tot)}">${usd(sw.tot)}</span>`)}</div>
+ <div class="card"><p class="h">Avg win/loss</p><div class="k">Average</div><div class="big ${cls(sw.aw-sw.al)}">${usd(sw.aw-sw.al)}</div>
+  ${ev('Win',`<span class="pos">${usd(sw.aw,1)}</span>`,0,'','stat:win')}<div class="hb"><i class="bgp" style="width:${(sw.aw/mx*100).toFixed(1)}%"></i></div>
+  ${ev('Loss',`<span class="neg">${usd(-sw.al)}</span>`,0,'','stat:loss')}<div class="hb"><i class="bgn" style="width:${(sw.al/mx*100).toFixed(1)}%"></i></div>
+  <div class="ev rule"><span class="dim">Expectancy / trade</span><b class="${cls(sw.exp)}">${usd(sw.exp)}</b></div></div>
 </section>
 <section class="g g21">
  ${calendar()}
  <div class="card"><p class="h">Evaluation</p>
   <div class="sec first">Performance</div>
-  ${ev('Expectancy',usd(s.exp),s.exp)}${ev('Average per trading day',usd(s.avgDay),s.avgDay)}${ev('Biggest winner',usd(Math.max(s.best,0),1),Math.max(s.best,0))}${ev('Biggest loser',usd(Math.min(s.worst,0)),Math.min(s.worst,0))}
+  ${ev('Expectancy',usd(s.exp),s.exp)}${ev('Average per trading day',usd(s.avgDay),s.avgDay)}${(()=>{const bw=s.best>0&&T.find(t=>t.pnl===s.best),bl=s.worst<0&&T.find(t=>t.pnl===s.worst),go=t=>t?`data-a="day" data-v="${t.day}" title="Show ${esc(dlabel(t.day))}"`:'';
+    return ev('Biggest winner',usd(Math.max(s.best,0),1),Math.max(s.best,0),go(bw))+ev('Biggest loser',usd(Math.min(s.worst,0)),Math.min(s.worst,0),go(bl))})()}
   <div class="sec">Risk</div>
   ${ev('Max drawdown',usd(-s.mdd),-s.mdd)}${ev('Recovery factor',s.rec==null?'—':s.rec.toFixed(2)+'&times;',s.rec)}${ev('Sharpe ratio',fx(s.sharpe),s.sharpe)}${ev('Sortino ratio',fx(s.sortino),s.sortino)}
   <div class="sec">Journal consistency</div>
@@ -391,28 +433,29 @@ function render(){
 <section class="g g21">
  <div class="card"><div class="rowh"><div><p class="h">Equity curve</p><div class="big ${cls(s.tot)}">${usd(s.tot)}</div></div>
   <div class="eqs">${kv('Win rate',n?s.wr.toFixed(1)+'%':'—')}${kv('Profit factor',pfT)}${kv('Trades',n)}${kv('Best trade',`<span class="${cls(s.best)}">${usd(s.best,1)}</span>`)}${kv('Worst trade',`<span class="${cls(s.worst)}">${usd(s.worst,1)}</span>`)}</div></div>
-  ${line(s.curve,s.tot<0?'cr':'cg')}</div>
- <div class="card"><p class="h">Performance</p><div class="k">Daily P&amp;L</div><div class="big ${cls(s.tot)}">${usd(s.tot)}</div>${bars(s.dp,1)}</div>
+  ${line(s.curve,s.tot<0?'cr':'cg',tradeAt(T,s.curve,'Equity'))}</div>
+ <div class="card"><p class="h">Performance</p><div class="k">Daily P&amp;L</div><div class="big ${cls(s.tot)}">${usd(s.tot)}</div>${bars(s.dp,1,dayAt(s.dk,s.dp,v=>usd(v,1)))}</div>
 </section>
 <section class="g g3">
- <div class="card"><p class="h">Score</p><div class="k">Composite 0–100</div><div class="big amb">${n?s.score:'—'}</div>${radar(s.axes)}</div>
- <div class="card"><p class="h">Volume</p><div class="k">Trades / day</div><div class="big">${n}</div>${bars(s.vol)}</div>
- <div class="card"><p class="h">Drawdown</p><div class="k">Max drawdown</div><div class="big ${cls(-s.mdd)}">${usd(-s.mdd)}</div>${line(s.under,'cr')}</div>
+ <div class="card"><p class="h">Score</p><div class="k">Composite 0–100</div><div class="big amb">${n?s.score:'—'}</div>${radar(s.axes,[`Payoff (avg win ÷ avg loss): ${s.al?(s.aw/s.al).toFixed(2):'—'} · ${Math.round(s.axes[0])}/100`,`Win rate: ${n?s.wr.toFixed(1)+'%':'—'} · ${Math.round(s.axes[1])}/100`,`Profit factor: ${pfT} · ${Math.round(s.axes[2])}/100`])}</div>
+ <div class="card"><p class="h">Volume</p><div class="k">Trades / day</div><div class="big">${n}</div>${bars(s.vol,0,dayAt(s.dk,s.vol,v=>`${Math.round(v)} trade${Math.round(v)===1?'':'s'}`))}</div>
+ <div class="card"><p class="h">Drawdown</p><div class="k">Max drawdown</div><div class="big ${cls(-s.mdd)}">${usd(-s.mdd)}</div>${line(s.under,'cr',tradeAt(T,s.under,'Drawdown'))}</div>
 </section>
-${(()=>{const B=brk(T),best=a=>{const i=a.indexOf(Math.max(...a));return Math.max(...a)>0?i:null},worst=a=>{const i=a.indexOf(Math.min(...a));return Math.min(...a)<0?i:null};
+${(()=>{const B=brk(view(true,'hour')),BW=brk(view(true,'wd')),BI=brk(view(true,'inst')),BS=brk(view(true,'side')),best=a=>{const i=a.indexOf(Math.max(...a));return Math.max(...a)>0?i:null},worst=a=>{const i=a.indexOf(Math.min(...a));return Math.min(...a)<0?i:null};
   const hr=h=>h==null?'—':new Date(2000,0,1,h).toLocaleTimeString('en-US',{hour:'numeric'}),DW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const pf=g=>g.gl?(g.gp/g.gl).toFixed(2):g.gp?'&infin;':'—',bh=best(B.hours),wh=worst(B.hours),bd=best(B.wd),wdd=worst(B.wd);
+  const pf=g=>g.gl?(g.gp/g.gl).toFixed(2):g.gp?'&infin;':'—',bh=best(B.hours),wh=worst(B.hours),bd=best(BW.wd),wdd=worst(BW.wd);
+  const pt=(k,lab,v)=>i=>({a:`data-a="xf" data-v="${k}:${i}"`,title:`${lab(i)}: ${usd(v[i],1)} — click to show only this`,off:U.x[k]!=null&&U.x[k]!==i});
   return `<section class="g g3">
  <div class="card"><p class="h">Time of day</p><div class="k">Net P&amp;L by entry hour</div><div class="big">${bh==null?'—':hr(bh)}</div>
-  ${bars(B.hours,1)}<div class="hl"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div>
+  ${bars0(B.hours,1,pt('hour',hr,B.hours))}<div class="hl"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div>
   <div class="ev rule"><span class="dim">Best hour / worst hour</span><b><span class="pos">${hr(bh)}</span> / <span class="neg">${hr(wh)}</span></b></div></div>
  <div class="card"><p class="h">Day of week</p><div class="k">Net P&amp;L by weekday</div><div class="big">${bd==null?'—':DW[bd]}</div>
-  ${bars(B.wd,1)}<div class="hl">${DW.map(d=>`<span>${d}</span>`).join('')}</div>
+  ${bars0(BW.wd,1,pt('wd',i=>DW[i],BW.wd))}<div class="hl">${DW.map(d=>`<span>${d}</span>`).join('')}</div>
   <div class="ev rule"><span class="dim">Best day / worst day</span><b><span class="pos">${bd==null?'—':DW[bd]}</span> / <span class="neg">${wdd==null?'—':DW[wdd]}</span></b></div></div>
  <div class="card"><p class="h">By instrument</p><div class="k">Net P&amp;L · win rate · profit factor</div>
-  ${B.inst.length?B.inst.map(([k,g])=>`<div class="ev"><span>${esc(k)} <span class="dim">· ${g.n} trade${g.n===1?'':'s'}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% · ${pf(g)}</span></b></div>`).join(''):'<div class="nd">NO DATA_</div>'}
+  ${BI.inst.length?BI.inst.map(([k,g])=>`<div class="ev pick${U.x.inst===k?' on':''}" role="button" tabindex="0" aria-pressed="${U.x.inst===k}" data-a="xf" data-v="inst:${esc(k)}"><span>${esc(k)} <span class="dim">· ${g.n} trade${g.n===1?'':'s'}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% · ${pf(g)}</span></b></div>`).join(''):'<div class="nd">NO DATA_</div>'}
   <div class="sec">Long vs short</div>
-  ${['Long','Short'].map(k=>{const g=B.side[k];return g?`<div class="ev"><span>${k} <span class="dim">· ${g.n}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% win</span></b></div>`:`<div class="ev"><span>${k}</span><b class="dim">—</b></div>`}).join('')}</div>
+  ${['Long','Short'].map(k=>{const g=BS.side[k];return g?`<div class="ev pick${U.x.side===k?' on':''}" role="button" tabindex="0" aria-pressed="${U.x.side===k}" data-a="xf" data-v="side:${k}"><span>${k} <span class="dim">· ${g.n}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% win</span></b></div>`:`<div class="ev"><span>${k}</span><b class="dim">—</b></div>`}).join('')}</div>
 </section>`})()}
 ${table(T)}`;
 }
@@ -673,12 +716,19 @@ const ACT={
   clear:()=>{if(confirm('Delete ALL trades and notes on this device?')){S={trades:[],notes:{},roll:S.roll};save();U.range='all';boot()}},
   prev:()=>shift(-1),next:()=>shift(1),tod:()=>{setMonth(Date.now());render()},
   day:v=>{U.range=U.range===v?'all':v;U.page=0;render()},
+  xf:v=>{const i=v.indexOf(':'),k=v.slice(0,i);let x=v.slice(i+1);if(k==='hour'||k==='wd')x=+x;
+    if(k==='stat')U.stat=U.stat===x?'all':x;else if(U.x[k]===x)delete U.x[k];else U.x[k]=x;U.page=0;render()},
+  xclr:k=>{if(k==='stat')U.stat='all';else if(k==='range')U.range='all';else delete U.x[k];U.page=0;render()},
+  xall:()=>{U.stat='all';U.x={};if(/^\d{4}-/.test(U.range))U.range='all';U.page=0;render()},
   edit:v=>tradeForm(S.trades.find(t=>t.id===v)),
   del:v=>{if(confirm('Delete this trade?')){S.trades=S.trades.filter(t=>t.id!==v);save();render()}},
   pp:()=>{U.page--;render()},pn:()=>{U.page++;render()}
 };
 function shift(k){const d=new Date(U.month.y,U.month.m+k,1);U.month={y:d.getFullYear(),m:d.getMonth()};render()}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&&ACT[b.dataset.a])ACT[b.dataset.a](b.dataset.v)});
+// rows that act as buttons (cross-filters) answer Enter and Space too, and keep focus after the redraw
+document.addEventListener('keydown',e=>{const b=e.target.closest('[role=button][data-a]');if(!b||(e.key!=='Enter'&&e.key!==' '))return;e.preventDefault();
+  const sel=`[data-a="${b.dataset.a}"][data-v="${CSS.escape(b.dataset.v||'')}"]`,i=[...document.querySelectorAll(sel)].indexOf(b);b.click();document.querySelectorAll(sel)[i]?.focus()});
 document.addEventListener('change',e=>{
   const k=e.target.dataset.f;if(!k)return;
   if(k==='roll'){S.roll=+e.target.value;save()}else U[k]=e.target.value;
