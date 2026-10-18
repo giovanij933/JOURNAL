@@ -596,7 +596,7 @@ function review(day){
   let run=0,peak=-Infinity,pk=0,low=Infinity;
   const rows=T.map((t,i)=>{run=r2(run+t.pnl);if(run>peak){peak=run;pk=i+1}low=Math.min(low,run);
     return `<li>${hm(t.open)} · <b>${t.side} ${esc(t.contract)}</b> ×${t.qty} · held ${dur((t.close-t.open)/1000)} · ${pts(t)>=0?'+':''}${+pts(t).toFixed(2)} pts · ${$$(t.pnl)}`+
-      `<span class="tr"> running ${usd(run,1)}${t.note?` · <q>${esc(t.note)}</q>`:''}</span></li>`}).join('');
+      `<span class="tr"><span class="ui-sr"> · </span>running ${usd(run,1)}${t.note?` · <q>${esc(t.note)}</q>`:''}</span></li>`}).join('');
   const gave=n>1&&peak>0?r2(peak-pnl):0,gaveBig=gave>=Math.max(100,peak*.25);
   out+=sec('How it unfolded',`<ol>${rows}</ol>`+(n>1?`<p>${peak>0?`Your P&amp;L peaked at ${$$(peak)} after trade ${pk}`:'You were never up on the day'}${low<0&&pnl>0?` and was ${$$(r2(low))} at its lowest before you came back`:''}${gaveBig?`; you gave back <b class="neg">${usd(gave)}</b> from there`:''}.</p>`:''));
   // what went well / what to look at
