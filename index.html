@@ -509,8 +509,9 @@ function exportCSV(){
   dl(`journal-${ymd(new Date())}.csv`,rows.map(r=>r.map(q).join(',')).join('\n'),'text/csv');
 }
 function sample(){
-  /* A profitable trader's last ~10 weeks: 200 trades, fixed risk of 1R = $60 (MNQ: 15 pt stop x 2 contracts;
-     MES: 6 pt stop x 2), winners taken at 3R, losers cut at 1R, some scratched at breakeven (net $0).
+  /* A profitable trader's last ~10 weeks on full-size futures: 200 trades in NQ, ES and GC (Dec '26), 1 contract,
+     fixed risk 1R = $300 (NQ 15 pt x $20, ES 6 pt x $50, GC 3.0 x $100), winners taken at 3R, losers cut at 1R,
+     some scratched at breakeven (net $0). Fees $5.00 a round trip (2.50 + 2.50).
      72 wins / 96 losses / 32 breakeven: 36% win rate (43% without breakevens), ~+0.6R a trade. The order comes from a
      fixed seed, so losing streaks and drawdowns look real and the sample is the same every time. */
   let seed=20261016;const rnd=()=>((seed=Math.imul(seed^seed>>>15,2246822507)^Math.imul(seed^seed>>>13,3266489909),(seed^=seed>>>16)>>>0)/4294967296);
@@ -521,17 +522,21 @@ function sample(){
   const days=[],d=new Date();d.setHours(0,0,0,0);
   for(let left=out.length;left>0;){d.setDate(d.getDate()-1);if(d.getDay()===0||d.getDay()===6)continue;const n=Math.min(left,2+Math.floor(rnd()*5));days.unshift({d:new Date(d),n});left-=n}
   const NOTE={W:['A+ setup, held to target','Patience paid — waited for the retest','Trailed under structure, hit 3R'],L:['Stopped out, plan followed','Chased the entry — rule break','Fought the trend, should have waited'],B:['Moved stop to breakeven, got tagged','Scratched before the news']};
-  let px={MNQZ6:21250,MESZ6:6050},k=0;
+  // contract: [point value, stop in points, tick, starting price]
+  const C={NQZ6:[20,15,.25,24800],ESZ6:[50,6,.25,6750],GCZ6:[100,3,.1,4150]},px={};for(const c in C)px[c]=C[c][3];
+  const dec=c=>c==='GCZ6'?1:2,fix=(v,c)=>+v.toFixed(dec(c));
+  let k=0;
   days.forEach(({d,n})=>{
     let t=new Date(d);t.setHours(9,30+Math.floor(rnd()*20),Math.floor(rnd()*60));
     for(let i=0;i<n;i++,k++){
-      const r=out[k],c=rnd()<.75?'MNQZ6':'MESZ6',mult=c==='MNQZ6'?2:5,stop=c==='MNQZ6'?15:6,tick=c==='MNQZ6'?.25:.25,long=rnd()<.55;
-      px[c]+=Math.round((rnd()-.48)*stop*4/tick)*tick;
-      // a breakeven exit sits just far enough in profit to pay the fees, so it nets exactly $0
-      // (MNQ: 2 ticks x 2 contracts = $2.00 = fees; MES: 1 tick x 2 = $2.50 = fees)
-      const fees=c==='MNQZ6'?1:1.25,entry=px[c],move=r==='W'?stop*3:r==='L'?-stop:(c==='MNQZ6'?.5:.25),exit=entry+(long?move:-move);
+      const r=out[k],x=rnd();
+      // a breakeven exit sits one NQ tick in profit ($5.00), which pays the fees exactly, so it nets $0. ES and GC ticks
+      // ($12.50, $10) can't land on the fee, so scratches are NQ trades
+      const c=r==='B'||x<.5?'NQZ6':x<.8?'ESZ6':'GCZ6',[mult,stop,tick]=C[c],long=rnd()<.55;
+      px[c]=fix(px[c]+Math.round((rnd()-.48)*stop*4/tick)*tick,c);
+      const entry=px[c],move=r==='W'?stop*3:r==='L'?-stop:tick,exit=fix(entry+(long?move:-move),c);
       const held=(r==='W'?8+rnd()*35:r==='L'?2+rnd()*12:5+rnd()*15)*60e3,open=t.getTime(),close=open+Math.round(held);
-      S.trades.push({id:uid(),account:'SAMPLE-50K',contract:c,side:long?'Long':'Short',qty:2,entry,exit,open,close,mult,fee:fees,comm:fees,note:rnd()<.18?pick(NOTE[r]):''});
+      S.trades.push({id:uid(),account:'SAMPLE-50K',contract:c,side:long?'Long':'Short',qty:1,entry,exit,open,close,mult,fee:2.5,comm:2.5,note:rnd()<.18?pick(NOTE[r]):''});
       t=new Date(close+(10+rnd()*40)*60e3);
     }
   });
