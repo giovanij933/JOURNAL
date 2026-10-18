@@ -389,16 +389,16 @@ ${(()=>{const B=brk(T),best=a=>{const i=a.indexOf(Math.max(...a));return Math.ma
   const hr=h=>h==null?'—':new Date(2000,0,1,h).toLocaleTimeString('en-US',{hour:'numeric'}),DW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const pf=g=>g.gl?(g.gp/g.gl).toFixed(2):g.gp?'&infin;':'—',bh=best(B.hours),wh=worst(B.hours),bd=best(B.wd),wdd=worst(B.wd);
   return `<section class="g g3">
- <div class="card"><p class="h">By instrument</p><div class="k">Net P&amp;L · win rate · profit factor</div>
-  ${B.inst.length?B.inst.map(([k,g])=>`<div class="ev"><span>${esc(k)} <span class="dim">· ${g.n} trade${g.n===1?'':'s'}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% · ${pf(g)}</span></b></div>`).join(''):'<div class="nd">NO DATA_</div>'}
-  <div class="sec">Long vs short</div>
-  ${['Long','Short'].map(k=>{const g=B.side[k];return g?`<div class="ev"><span>${k} <span class="dim">· ${g.n}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% win</span></b></div>`:`<div class="ev"><span>${k}</span><b class="dim">—</b></div>`}).join('')}</div>
  <div class="card"><p class="h">Time of day</p><div class="k">Net P&amp;L by entry hour</div><div class="big">${bh==null?'—':hr(bh)}</div>
   ${bars(B.hours,1)}<div class="hl"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div>
   <div class="ev rule"><span class="dim">Best hour / worst hour</span><b><span class="pos">${hr(bh)}</span> / <span class="neg">${hr(wh)}</span></b></div></div>
  <div class="card"><p class="h">Day of week</p><div class="k">Net P&amp;L by weekday</div><div class="big">${bd==null?'—':DW[bd]}</div>
   ${bars(B.wd,1)}<div class="hl">${DW.map(d=>`<span>${d}</span>`).join('')}</div>
   <div class="ev rule"><span class="dim">Best day / worst day</span><b><span class="pos">${bd==null?'—':DW[bd]}</span> / <span class="neg">${wdd==null?'—':DW[wdd]}</span></b></div></div>
+ <div class="card"><p class="h">By instrument</p><div class="k">Net P&amp;L · win rate · profit factor</div>
+  ${B.inst.length?B.inst.map(([k,g])=>`<div class="ev"><span>${esc(k)} <span class="dim">· ${g.n} trade${g.n===1?'':'s'}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% · ${pf(g)}</span></b></div>`).join(''):'<div class="nd">NO DATA_</div>'}
+  <div class="sec">Long vs short</div>
+  ${['Long','Short'].map(k=>{const g=B.side[k];return g?`<div class="ev"><span>${k} <span class="dim">· ${g.n}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% win</span></b></div>`:`<div class="ev"><span>${k}</span><b class="dim">—</b></div>`}).join('')}</div>
 </section>`})()}
 ${table(T)}`;
 }
