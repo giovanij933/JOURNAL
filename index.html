@@ -314,8 +314,12 @@ function calendar(){
    <span class="dim">${td} trading day${td===1?'':'s'} · ${nT} trade${nT===1?'':'s'}</span></div></div>`;
 }
 
+// the log's columns, for sorting and filtering (UI.filter); the last column holds the row's buttons
+const LOGC=[{label:'Time (local)',get:t=>t.close,type:'time'},{label:'Account',get:t=>t.account},{label:'Contract',get:t=>t.contract},{label:'Side',get:t=>t.side==='Short'?'Short':'Long'},
+  {label:'Qty',get:t=>t.qty,type:'num'},{label:'Entry',get:t=>t.entry,type:'num'},{label:'Exit',get:t=>t.exit,type:'num'},{label:'Duration',get:t=>(t.close-t.open)/6e4,type:'num',unit:'min'},
+  {label:'Fee',get:t=>t.fee,type:'num'},{label:'Comm',get:t=>t.comm,type:'num'},{label:'P&L (net)',get:t=>t.pnl,type:'num',unit:'$'},null];
 function table(T){
-  const rows=[...T].reverse(),pages=Math.max(1,Math.ceil(rows.length/PAGE));
+  const F=UI.filter('log',LOGC,()=>{U.page=0;render()}),rows=F.apply([...T].reverse()),pages=Math.max(1,Math.ceil(rows.length/PAGE));
   U.page=Math.min(Math.max(U.page,0),pages-1);
   const body=rows.slice(U.page*PAGE,(U.page+1)*PAGE).map(t=>`<tr>
    <td>${tfmt(t.close)}</td><td class="dim">${esc(t.account)}</td><td><b>${esc(t.contract)}</b></td>
@@ -324,9 +328,9 @@ function table(T){
    <td class="r"><b class="${cls(t.pnl)}">${usd(t.pnl,1)}</b></td>
    <td class="r">${t.note?`<span class="amb" title="${esc(t.note)}">*</span> `:''}<button data-a="edit" data-v="${t.id}">EDIT</button> <button data-a="del" data-v="${t.id}" aria-label="Delete trade">X</button></td></tr>`).join('');
   return `<div class="card"><div class="rowh"><p class="h">Log</p><button data-a="csv">EXPORT CSV</button></div>
-  <div class="tw" tabindex="0" role="region" aria-label="Table"><table><thead><tr><th>Time (local)</th><th>Account</th><th>Contract</th><th>Side</th><th class="r">Qty</th><th class="r">Entry</th><th class="r">Exit</th><th>Duration</th><th class="r">Fee</th><th class="r">Comm</th><th class="r">P&amp;L (net)</th><th><span class="ui-sr">Actions</span></th></tr></thead>
+  <div class="tw" tabindex="0" role="region" aria-label="Table"><table><thead><tr><th>${F.th(0)}</th><th>${F.th(1)}</th><th>${F.th(2)}</th><th>${F.th(3)}</th><th class="r">${F.th(4)}</th><th class="r">${F.th(5)}</th><th class="r">${F.th(6)}</th><th>${F.th(7)}</th><th class="r">${F.th(8)}</th><th class="r">${F.th(9)}</th><th class="r">${F.th(10)}</th><th><span class="ui-sr">Actions</span></th></tr></thead>
   <tbody>${body||'<tr><td colspan="12" class="dim">No trades in this view_</td></tr>'}</tbody></table></div>
-  <div class="calf"><div><button data-a="pp">&lt;</button> Page <b>${U.page+1}</b> of ${pages} <button data-a="pn">&gt;</button></div><span class="dim">${rows.length} record${rows.length===1?'':'s'}</span></div></div>`;
+  <div class="calf"><div><button data-a="pp">&lt;</button> Page <b>${U.page+1}</b> of ${pages} <button data-a="pn">&gt;</button></div><span class="dim">${rows.length} record${rows.length===1?'':'s'}${F.clear()}</span></div></div>`;
 }
 
 /* ---------- breakdowns (what TradeZella / Edgewonk / Tradervue lead with) ---------- */
