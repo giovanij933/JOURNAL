@@ -34,10 +34,8 @@ button:hover,select:hover{border-color:var(--amber);color:var(--amber)}
 .pri{background:var(--amber);border-color:var(--amber);color:#000;font-weight:600}
 .pri:hover{color:#000;filter:brightness(1.12)}
 .pos{color:var(--green)}
-/* trade side: long green, short red, as on most trading platforms (arrow and word stay for colour-blind reading) */
-.sd-c{display:inline-block;padding:2px 7px;font-size:10.5px;font-weight:600;letter-spacing:.08em;border:1px solid;white-space:nowrap}
-.sd-l{color:var(--green);border-color:rgba(51,255,102,.4);background:rgba(51,255,102,.08)}
-.sd-s{color:#ff6b6b;border-color:rgba(255,69,69,.45);background:rgba(255,69,69,.08)}.neg{color:var(--red)}.dim{color:var(--dim)}.amb{color:var(--amber)}
+/* trade side: only the arrow is coloured, long green and short red (the word stays for colour-blind reading) */
+.sd-l{color:var(--green)}.sd-s{color:#ff6b6b}.neg{color:var(--red)}.dim{color:var(--dim)}.amb{color:var(--amber)}
 .bgp{background:var(--green)}.bgn{background:var(--red)}.bgd{background:var(--line2)}
 .r{text-align:right}
 
@@ -320,7 +318,7 @@ function table(T){
   U.page=Math.min(Math.max(U.page,0),pages-1);
   const body=rows.slice(U.page*PAGE,(U.page+1)*PAGE).map(t=>`<tr>
    <td>${tfmt(t.close)}</td><td class="dim">${esc(t.account)}</td><td><b>${esc(t.contract)}</b></td>
-   <td>${t.side==='Short'?'<span class="sd-c sd-s">&#9662; SHORT</span>':'<span class="sd-c sd-l">&#9652; LONG</span>'}</td><td class="r">${t.qty}</td><td class="r">${px(t.entry)}</td><td class="r">${px(t.exit)}</td>
+   <td>${t.side==='Short'?'<span class="sd-s" aria-hidden="true">&#9662;</span> SHORT':'<span class="sd-l" aria-hidden="true">&#9652;</span> LONG'}</td><td class="r">${t.qty}</td><td class="r">${px(t.entry)}</td><td class="r">${px(t.exit)}</td>
    <td>${dur((t.close-t.open)/1000)}</td><td class="r">${usd(t.fee)}</td><td class="r">${usd(t.comm)}</td>
    <td class="r"><b class="${cls(t.pnl)}">${usd(t.pnl,1)}</b></td>
    <td class="r">${t.note?`<span class="amb" title="${esc(t.note)}">*</span> `:''}<button data-a="edit" data-v="${t.id}">EDIT</button> <button data-a="del" data-v="${t.id}" aria-label="Delete trade">X</button></td></tr>`).join('');
