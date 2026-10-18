@@ -36,7 +36,7 @@ button:hover,select:hover{border-color:var(--amber);color:var(--amber)}
 .pos{color:var(--green)}
 /* trade side: only the arrow is coloured, long green and short red (the word stays for colour-blind reading) */
 .sd-l{color:var(--green)}.sd-s{color:#ff6b6b}.neg{color:var(--red)}.dim{color:var(--dim)}.amb{color:var(--amber)}
-.bgp{background:var(--green)}.bgn{background:var(--red)}.bgd{background:var(--line2)}
+.bgp{background:var(--green)}.bgn{background:var(--red)}.bgd{background:var(--line2)}.bgm{background:var(--dim)}
 .r{text-align:right}
 
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-bottom:14px;border-bottom:1px solid var(--line)}
@@ -351,10 +351,10 @@ function render(){
 <section class="g g4">
  <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${n}</div>
   ${gauge([[n?s.w/n:0,'sg'],[n?s.be/n:0,'sd'],[n?s.l/n:0,'sr']],n?Math.round(s.wr)+'%':'—')}
-  ${lg('bgp','Wins',s.w,pct(s.w,n))}${lg('bgd','Breakeven',s.be,pct(s.be,n))}${lg('bgn','Losses',s.l,pct(s.l,n))}</div>
+  ${lg('bgp','Wins',s.w,pct(s.w,n))}${lg('bgm','Breakeven',s.be,pct(s.be,n))}${lg('bgn','Losses',s.l,pct(s.l,n))}</div>
  <div class="card"><p class="h">Day wins</p><div class="k">Trading days</div><div class="big">${nd}</div>
   ${gauge([[nd?s.dw/nd:0,'sg'],[nd?bd/nd:0,'sd'],[nd?s.dl/nd:0,'sr']],nd?pct(s.dw,nd):'—')}
-  ${lg('bgp','Win days',s.dw,pct(s.dw,nd))}${lg('bgd','Breakeven days',bd,pct(bd,nd))}${lg('bgn','Loss days',s.dl,pct(s.dl,nd))}</div>
+  ${lg('bgp','Win days',s.dw,pct(s.dw,nd))}${lg('bgm','Breakeven days',bd,pct(bd,nd))}${lg('bgn','Loss days',s.dl,pct(s.dl,nd))}</div>
  <div class="card"><p class="h">Profit factor</p><div class="k">Factor</div><div class="big">${pfT}</div>
   ${gauge([[gs?s.gp/gs:0,'sg'],[gs?s.gl/gs:0,'sr']],pfT)}
   ${lg('bgp','Profits',usd(s.gp))}${lg('bgn','Losses',usd(s.gl))}${lg('bgd','Net',`<span class="${cls(s.tot)}">${usd(s.tot)}</span>`)}</div>
