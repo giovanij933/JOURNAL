@@ -33,7 +33,9 @@ button:hover,select:hover{border-color:var(--amber);color:var(--amber)}
 :focus-visible{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber)}
 .pri{background:var(--amber);border-color:var(--amber);color:#000;font-weight:600}
 .pri:hover{color:#000;filter:brightness(1.12)}
-.pos{color:var(--green)}.neg{color:var(--red)}.dim{color:var(--dim)}.amb{color:var(--amber)}
+.pos{color:var(--green)}
+/* trade side: only the arrow is coloured, long green and short red (the word stays for colour-blind reading) */
+.sd-l{color:var(--green)}.sd-s{color:#ff6b6b}.neg{color:var(--red)}.dim{color:var(--dim)}.amb{color:var(--amber)}
 .bgp{background:var(--green)}.bgn{background:var(--red)}.bgd{background:var(--line2)}
 .r{text-align:right}
 
@@ -316,7 +318,7 @@ function table(T){
   U.page=Math.min(Math.max(U.page,0),pages-1);
   const body=rows.slice(U.page*PAGE,(U.page+1)*PAGE).map(t=>`<tr>
    <td>${tfmt(t.close)}</td><td class="dim">${esc(t.account)}</td><td><b>${esc(t.contract)}</b></td>
-   <td>${t.side==='Short'?'&#9662; SHORT':'&#9652; LONG'}</td><td class="r">${t.qty}</td><td class="r">${px(t.entry)}</td><td class="r">${px(t.exit)}</td>
+   <td>${t.side==='Short'?'<span class="sd-s" aria-hidden="true">&#9662;</span> SHORT':'<span class="sd-l" aria-hidden="true">&#9652;</span> LONG'}</td><td class="r">${t.qty}</td><td class="r">${px(t.entry)}</td><td class="r">${px(t.exit)}</td>
    <td>${dur((t.close-t.open)/1000)}</td><td class="r">${usd(t.fee)}</td><td class="r">${usd(t.comm)}</td>
    <td class="r"><b class="${cls(t.pnl)}">${usd(t.pnl,1)}</b></td>
    <td class="r">${t.note?`<span class="amb" title="${esc(t.note)}">*</span> `:''}<button data-a="edit" data-v="${t.id}">EDIT</button> <button data-a="del" data-v="${t.id}" aria-label="Delete trade">X</button></td></tr>`).join('');
