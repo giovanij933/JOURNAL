@@ -216,7 +216,7 @@ function setMonth(ms){const d=pd(tday(ms));U.month={y:d.getFullYear(),m:d.getMon
 let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
 
 function view(useRange=true){
-  const today=tday(Date.now()),wk=s=>{const d=pd(s);d.setDate(d.getDate()-d.getDay());return ymd(d)};
+  const today=tday(Date.now()),wk=s=>{const d=pd(s);d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)}   /* trading week: Monday first */;
   const inR=d=>U.range==='all'||(U.range==='today'?d===today:U.range==='week'?wk(d)===wk(today):U.range==='month'?d.slice(0,7)===today.slice(0,7):d===U.range);
   return S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)}))
     .filter(t=>(U.acct==='all'||t.account===U.acct)&&(U.stat==='all'||(U.stat==='win'?t.pnl>0:t.pnl<0))&&(!useRange||inR(t.day)))
@@ -289,8 +289,9 @@ const kv=(k,v)=>`<div><span class="k">${k}</span><b>${v}</b></div>`;
 const fx=v=>v==null?'—':v.toFixed(2);
 
 function calendar(){
+  // weeks run Monday to Sunday, so the Week column matches the Today card's trading week
   const D={};view(false).forEach(t=>{D[t.day]??={pnl:0,n:0};D[t.day].pnl+=t.pnl;D[t.day].n++});
-  const {y,m}=U.month,lead=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate(),rows=Math.ceil((lead+dim)/7),today=tday(Date.now());
+  const {y,m}=U.month,lead=(new Date(y,m,1).getDay()+6)%7,dim=new Date(y,m+1,0).getDate(),rows=Math.ceil((lead+dim)/7),today=tday(Date.now());
   const cell=(p,nn)=>`<b class="${cls(p)}">${usd0(p)}</b><em>${nn} trade${nn>1?'s':''}</em>`;
   let h='',tot=0,nT=0,wd=0,ld=0,td=0;
   for(let r=0;r<rows;r++){
@@ -300,7 +301,7 @@ function calendar(){
       if(d<1||d>dim){h+='<div class="cd off"></div>';continue}
       const k=`${y}-${pad(m+1)}-${pad(d)}`,x=D[k],p=x?r2(x.pnl):0;
       if(x){ws+=p;wn+=x.n;tot+=p;nT+=x.n;td++;if(p>0)wd++;else if(p<0)ld++}
-      h+=`<button class="cd${c%6?'':' we'}${p>0?' p':p<0?' n':''}${k===U.range?' sel':''}${k===today?' now':''}" data-a="day" data-v="${k}"><span>${d}${S.notes[k]?' <i class="amb">*</i>':''}</span>${x?cell(p,x.n):''}</button>`;
+      h+=`<button class="cd${c<5?'':' we'}${p>0?' p':p<0?' n':''}${k===U.range?' sel':''}${k===today?' now':''}" data-a="day" data-v="${k}"><span>${d}${S.notes[k]?' <i class="amb">*</i>':''}</span>${x?cell(p,x.n):''}</button>`;
     }
     h+=`<div class="cd wk">${wn?cell(r2(ws),wn):'<em>—</em>'}</div>`;
   }
@@ -308,7 +309,7 @@ function calendar(){
   return `<div class="card">
   <div class="rowh"><div><p class="h">P&amp;L calendar</p><div class="k">Total</div><div class="big ${cls(tot)}">${usd(tot)}</div></div>
    <div>Winning: <b class="pos">${wd}</b> &nbsp; Losing: <b class="neg">${ld}</b></div></div>
-  <div class="cal">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat','Week'].map(d=>`<div class="dw">${d}</div>`).join('')}${h}</div>
+  <div class="cal">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun','Week'].map(d=>`<div class="dw">${d}</div>`).join('')}${h}</div>
   <div class="calf"><div><button data-a="prev" aria-label="Previous month">&lt;</button> <b>${new Date(y,m,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}</b> <button data-a="next" aria-label="Next month">&gt;</button> <button data-a="tod">TODAY</button></div>
    <span class="dim">${td} trading day${td===1?'':'s'} · ${nT} trade${nT===1?'':'s'}</span></div></div>`;
 }
@@ -322,7 +323,7 @@ function table(T){
    <td>${dur((t.close-t.open)/1000)}</td><td class="r">${usd(t.fee)}</td><td class="r">${usd(t.comm)}</td>
    <td class="r"><b class="${cls(t.pnl)}">${usd(t.pnl,1)}</b></td>
    <td class="r">${t.note?`<span class="amb" title="${esc(t.note)}">*</span> `:''}<button data-a="edit" data-v="${t.id}">EDIT</button> <button data-a="del" data-v="${t.id}" aria-label="Delete trade">X</button></td></tr>`).join('');
-  return `<div class="card"><div class="rowh"><p class="h">Trades</p><button data-a="csv">EXPORT CSV</button></div>
+  return `<div class="card"><div class="rowh"><p class="h">Log</p><button data-a="csv">EXPORT CSV</button></div>
   <div class="tw" tabindex="0" role="region" aria-label="Table"><table><thead><tr><th>Time (local)</th><th>Account</th><th>Contract</th><th>Side</th><th class="r">Qty</th><th class="r">Entry</th><th class="r">Exit</th><th>Duration</th><th class="r">Fee</th><th class="r">Comm</th><th class="r">P&amp;L (net)</th><th><span class="ui-sr">Actions</span></th></tr></thead>
   <tbody>${body||'<tr><td colspan="12" class="dim">No trades in this view_</td></tr>'}</tbody></table></div>
   <div class="calf"><div><button data-a="pp">&lt;</button> Page <b>${U.page+1}</b> of ${pages} <button data-a="pn">&gt;</button></div><span class="dim">${rows.length} record${rows.length===1?'':'s'}</span></div></div>`;
