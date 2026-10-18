@@ -519,8 +519,8 @@ function sample(){
   const pick=a=>a[Math.floor(rnd()*a.length)];
   const out=[...Array(72).fill('W'),...Array(96).fill('L'),...Array(32).fill('B')];
   for(let i=out.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[out[i],out[j]]=[out[j],out[i]]}
-  // trading days: weekdays, ending yesterday, 2–6 trades a day
-  const days=[],d=new Date();d.setHours(0,0,0,0);
+  // trading days: weekdays, ending today (on a weekend, Friday), 2–6 trades a day
+  const days=[],d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()+1);
   for(let left=out.length;left>0;){d.setDate(d.getDate()-1);if(d.getDay()===0||d.getDay()===6)continue;const n=Math.min(left,2+Math.floor(rnd()*5));days.unshift({d:new Date(d),n});left-=n}
   const NOTE={W:['A+ setup, held to target','Patience paid — waited for the retest','Trailed under structure, hit 3R'],L:['Stopped out, plan followed','Chased the entry — rule break','Fought the trend, should have waited'],B:['Moved stop to breakeven, got tagged','Scratched before the news']};
   // contract: [point value, stop in points, tick, starting price]
@@ -541,6 +541,9 @@ function sample(){
       t=new Date(close+(10+rnd()*40)*60e3);
     }
   });
+  // today's trades all closed before now: slide the day back to fit
+  const now=Date.now(),mine=S.trades.filter(x=>x.account==='SAMPLE-50K'),late=Math.max(0,...mine.map(x=>x.close-now));
+  if(late){const t0=new Date();t0.setHours(0,0,0,0);mine.forEach(x=>{if(x.open>=t0){x.open-=late+5*6e4;x.close-=late+5*6e4}})}
   save();boot();
 }
 
