@@ -120,6 +120,15 @@ label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--dim)
 label input,label select,label textarea,dialog textarea{width:100%;font-size:13px;letter-spacing:0;text-transform:none;color:var(--tx)}
 textarea{resize:vertical}
 .fa2{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:14px}
+/* daily review: a script to read top to bottom */
+dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+.rvh{display:flex;align-items:center;gap:8px;margin-bottom:6px}.rvh h3{margin:0;flex:1}
+.rv{border-top:1px solid var(--line);padding:14px 0 4px;font-size:14px;line-height:1.7}
+.rv h4{margin:0 0 6px;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.rv p{margin:0 0 8px}.rv b{font-weight:600}.rv q{color:var(--dim);font-style:italic}
+.rv ol,.rv ul{margin:0 0 8px;padding-left:22px}.rv li{margin:0 0 6px}.rv li::marker{color:var(--dim)}
+.rv .tr{display:block;color:var(--dim);font-size:12px}
+.rv blockquote{margin:0 0 8px;padding:2px 0 2px 12px;border-left:2px solid var(--amber);white-space:pre-wrap}
 .fa2 span{margin-right:auto}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:var(--panel);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
 #toast.on{opacity:1}
@@ -140,6 +149,7 @@ h1.brand{margin:0}
   <div class="acts">
     <button class="pri" data-a="add">+ TRADE</button>
     <button data-a="imp">IMPORT</button>
+    <button data-a="review">REVIEW</button>
     <button data-a="note">NOTES</button>
     <button data-a="set">SETTINGS</button>
     <input id="file" type="file" accept=".csv,.json,text/csv,application/json" hidden>
@@ -553,6 +563,95 @@ function sample(){
 
 /* ---------- events ---------- */
 /* ---------- settings: everything that used to sit in the footer, behind the header's SETTINGS button ---------- */
+/* ---------- daily review: a script to read over at the end of each trading day ----------
+   Built from the day's trades (in the account filter), the days before it, your notes and the morning check-in.
+   Plain sentences first, then the trades in order, what went well, what to look at, and questions to answer. */
+function rvDays(){const D=new Set();S.trades.forEach(t=>{if(U.acct==='all'||t.account===U.acct)D.add(tday(t.close))});return [...D].sort()}
+function rvDefault(){
+  const D=rvDays(),t=tday(Date.now());
+  return /^\d{4}-/.test(U.range)&&D.includes(U.range)?U.range:D.includes(t)?t:D.filter(d=>d<=t).at(-1)||D.at(-1);
+}
+function review(day){
+  const all=S.trades.filter(t=>U.acct==='all'||t.account===U.acct).map(t=>({...t,pnl:net(t),day:tday(t.close)}));
+  const T=all.filter(t=>t.day===day).sort((a,b)=>a.close-b.close);
+  const n=T.length,W=T.filter(t=>t.pnl>0),L=T.filter(t=>t.pnl<0),be=n-W.length-L.length,pnl=r2(T.reduce((a,t)=>a+t.pnl,0));
+  const $$=v=>`<b class="${cls(v)}">${usd(v,1)}</b>`,pl=(k,w)=>`${k} ${w}${k===1?'':'s'}`,hm=ms=>new Date(ms).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const mins=t=>(t.close-t.open)/6e4,avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,m=v=>v<1?'under a minute':Math.round(v)+' min';
+  const fees=r2(T.reduce((a,t)=>a+t.fee+t.comm,0)),pts=t=>(t.exit-t.entry)*(t.side==='Short'?-1:1);
+  const sec=(h,b)=>b?`<section class="rv"><h4>${h}</h4>${b}</section>`:'';
+  // the day
+  let out=sec('The day',`<p>On <b>${pd(day).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</b> you took ${pl(n,'trade')}${U.acct==='all'?'':` on ${esc(U.acct)}`} and finished ${$$(pnl)} net. `+
+    `${W.length} won, ${L.length} lost${be?`, ${be} scratched at breakeven`:''}. ${pnl>0?'A green day.':pnl<0?'A red day.':'A flat day.'}${fees?` Fees and commissions came to ${usd(fees)}.`:''}</p>`);
+  // in context: the 20 trading days before, the week so far, the streak
+  const D={};all.forEach(t=>{(D[t.day]??={p:0,n:0}).p+=t.pnl;D[t.day].n++});
+  const prev=Object.keys(D).filter(k=>k<day).sort().slice(-20),ap=avg(prev.map(k=>D[k].p)),an=avg(prev.map(k=>D[k].n));
+  const ws=(d=>{d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)})(pd(day)),wk=Object.keys(D).filter(k=>k>=ws&&k<=day),wp=r2(wk.reduce((a,k)=>a+D[k].p,0));
+  let st=0;for(const k of Object.keys(D).filter(k=>k<=day).sort().reverse()){const g=Math.sign(D[k].p);if(!g||(st&&Math.sign(st)!==g))break;st+=g}
+  const over=an!=null&&an>=2&&n>=an*1.5;
+  out+=sec('In context',prev.length?`<p>Over your last ${pl(prev.length,'trading day')} you averaged ${$$(r2(ap))} and ${Math.round(an*10)/10} trades a day, so today was ${pnl>ap?'<b>better</b> than usual':pnl<ap?'<b>worse</b> than usual':'<b>about average</b>'}. `+
+    `You took ${n} trade${n===1?'':'s'} against your usual ${Math.round(an)}${over?' — <b>noticeably more</b>':''}.</p>`+
+    `<p>Week to date: ${$$(wp)} over ${pl(wk.length,'day')} (${wk.filter(k=>D[k].p>0).length} green).${Math.abs(st)>=2?` That's ${Math.abs(st)} ${st>0?'green':'red'} days in a row.`:''}</p>`
+    :`<p>This is the first trading day in your journal${U.acct==='all'?'':' for this account'}, so there's nothing to compare it with yet.</p>`);
+  // the trades in order, with the running P&L
+  let run=0,peak=-Infinity,pk=0,low=Infinity;
+  const rows=T.map((t,i)=>{run=r2(run+t.pnl);if(run>peak){peak=run;pk=i+1}low=Math.min(low,run);
+    return `<li>${hm(t.open)} · <b>${t.side} ${esc(t.contract)}</b> ×${t.qty} · held ${dur((t.close-t.open)/1000)} · ${pts(t)>=0?'+':''}${+pts(t).toFixed(2)} pts · ${$$(t.pnl)}`+
+      `<span class="tr"> running ${usd(run,1)}${t.note?` · <q>${esc(t.note)}</q>`:''}</span></li>`}).join('');
+  const gave=n>1&&peak>0?r2(peak-pnl):0,gaveBig=gave>=Math.max(100,peak*.25);
+  out+=sec('How it unfolded',`<ol>${rows}</ol>`+(n>1?`<p>${peak>0?`Your P&amp;L peaked at ${$$(peak)} after trade ${pk}`:'You were never up on the day'}${low<0&&pnl>0?` and was ${$$(r2(low))} at its lowest before you came back`:''}${gaveBig?`; you gave back <b class="neg">${usd(gave)}</b> from there`:''}.</p>`:''));
+  // what went well / what to look at
+  const best=T.reduce((a,t)=>t.pnl>(a?.pnl??-Infinity)?t:a,null),worst=T.reduce((a,t)=>t.pnl<(a?.pnl??Infinity)?t:a,null);
+  const hw=avg(W.map(mins)),hl=avg(L.map(mins));
+  const fast=T.filter((t,i)=>i&&T.slice(0,i).some(x=>x.pnl<0&&t.open>=x.close&&t.open-x.close<=5*6e4));
+  let ls=0,lsMax=0;T.forEach(t=>{ls=t.pnl<0?ls+1:0;lsMax=Math.max(lsMax,ls)});
+  const good=[],look=[];
+  if(best&&best.pnl>0)good.push(`Best trade: ${hm(best.open)} ${best.side} ${esc(best.contract)} for ${$$(best.pnl)}${best.note?` — <q>${esc(best.note)}</q>`:''}.`);
+  if(hw!=null&&hl!=null&&hw>hl)good.push(`You let winners run (${m(hw)} on average) and cut losers faster (${m(hl)}). That's the right way round.`);
+  if(n&&T[0].pnl>0)good.push('You started the day with a win.');
+  if(pnl>0&&!gaveBig&&n>1)good.push('You kept most of what you made: no big give-back from the high.');
+  if(L.length&&!fast.length)good.push('No quick re-entries after a loss.');
+  if(worst&&worst.pnl<0)look.push(`Worst trade: ${hm(worst.open)} ${worst.side} ${esc(worst.contract)} for ${$$(worst.pnl)}${worst.note?` — <q>${esc(worst.note)}</q>`:''}.`);
+  if(hw!=null&&hl!=null&&hl>hw)look.push(`Losers were held longer than winners (${m(hl)} vs ${m(hw)}). Were your stops where the plan said?`);
+  if(fast.length)look.push(`${pl(fast.length,'trade')} ${fast.length===1?'was':'were'} entered within 5 minutes of a loss (${fast.map(t=>hm(t.open)).join(', ')}). Planned, or a reaction?`);
+  if(lsMax>=3)look.push(`${lsMax} losses in a row at one point.`);
+  if(gaveBig)look.push(`You gave back ${usd(gave)} after the peak of ${usd(peak,1)}.`);
+  if(over)look.push(`More trades than usual (${n} vs about ${Math.round(an)}).`);
+  out+=sec('What went well',good.length?`<ul>${good.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>Nothing stands out in the numbers. Look at your execution instead.</p>');
+  out+=sec('What to look at',look.length?`<ul>${look.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>No warning signs in the numbers.</p>');
+  // the morning check-in from TODAY, when there is one for this date
+  let ci=null;try{ci=(JSON.parse(localStorage.getItem('isx.checkin.v1'))?.log||[]).find(e=>e.day===day)}catch(e){}
+  if(ci){const Q=['','poor','restless','OK','good','great'],E=['','drained','low','steady','good','charged'];
+    out+=sec('Your state',`<p>You slept <b>${ci.sleep} h</b> (${Q[ci.q]||'—'} sleep) and your energy was <b>${E[ci.energy]||'—'}</b>.${ci.sleep<7&&pnl<0?' Short sleep on a red day: worth watching if it repeats.':''}</p>`)}
+  out+=sec('Your notes',S.notes[day]?`<blockquote>${esc(S.notes[day])}</blockquote>`:'<p>No notes for this day yet.</p>');
+  // questions, most specific first
+  const q=['Did every trade follow your plan? Which one didn\'t, and why?'];
+  if(pnl<0)q.push('Did you stop at your daily loss limit, or keep going?');
+  if(gaveBig)q.push(`What made you keep trading after you were up ${usd(peak,1)}?`);
+  if(fast.length)q.push(`What were you feeling after the loss before ${hm(fast[0].open)}, and why re-enter so quickly?`);
+  if(over)q.push(`Which of today's ${n} trades would you skip if you could do the day again?`);
+  if(best&&best.pnl>0)q.push(`What made the ${hm(best.open)} ${esc(best.contract)} trade work? Could you spot it again tomorrow?`);
+  q.push('One thing to repeat tomorrow. One thing to cut.');
+  out+=sec('Questions to answer',`<ol>${q.map(x=>`<li>${x}</li>`).join('')}</ol>`);
+  return out;
+}
+function reviewForm(day){
+  const D=rvDays();if(!D.length)return toast('No trades to review yet');
+  day=D.includes(day)?day:rvDefault();const i=D.indexOf(day);
+  dlg.classList.add('rvd');dlg.addEventListener('close',()=>dlg.classList.remove('rvd'),{once:true});
+  dlg.innerHTML=`<div class="rvh"><h3>DAILY REVIEW // ${dlabel(day).toUpperCase()}</h3>
+    <button type="button" data-a="rvgo" data-v="${D[i-1]||''}" ${i>0?'':'disabled'} aria-label="Previous trading day">&lt;</button><button type="button" data-a="rvgo" data-v="${D[i+1]||''}" ${i<D.length-1?'':'disabled'} aria-label="Next trading day">&gt;</button></div>
+    <div id="rvb">${review(day)}</div>
+    <div class="fa2"><span><button type="button" data-a="rvcopy">COPY</button></span><button type="button" data-a="rvnote" data-v="${day}">WRITE NOTES</button><button type="button" class="pri" data-a="x">DONE</button></div>`;
+  if(!dlg.open)dlg.showModal();
+  dlg.querySelector('#rvb').scrollTop=0;dlg.scrollTop=0;
+}
+// plain text of the review, for pasting into a notes app
+function reviewText(){
+  const b=$('#rvb');if(!b)return '';
+  return [dlg.querySelector('.rvh h3').textContent,...[...b.querySelectorAll('.rv')].map(x=>[x.querySelector('h4').textContent.toUpperCase(),
+    ...[...x.children].slice(1).map(el=>el.matches('ol,ul')?[...el.children].map((li,i)=>`${el.matches('ol')?i+1+'.':'-'} ${li.textContent.replace(/\s+/g,' ').trim()}`).join('\n'):el.textContent.trim())].join('\n'))].join('\n\n');
+}
+
 function settingsForm(){
   dlg.innerHTML=`<h3>SETTINGS</h3>
   <div class="ui-set">
@@ -568,6 +667,8 @@ const ACT={
   set:()=>settingsForm(),sync:()=>{dlg.close();document.getElementById('isx-sync')?.click()},
   add:()=>tradeForm(),imp:()=>$('#file').click(),x:()=>dlg.close(),sample,csv:exportCSV,
   note:()=>noteForm(U.range in RANGES?tday(Date.now()):U.range),
+  review:()=>reviewForm(rvDefault()),rvgo:v=>v&&reviewForm(v),rvnote:v=>{dlg.classList.remove('rvd');noteForm(v)},
+  rvcopy:()=>{const t=reviewText();(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Review copied'),()=>toast('Copy failed — select the text instead'))},
   bak:()=>dl(`journal-backup-${ymd(new Date())}.json`,JSON.stringify(S),'application/json'),
   clear:()=>{if(confirm('Delete ALL trades and notes on this device?')){S={trades:[],notes:{},roll:S.roll};save();U.range='all';boot()}},
   prev:()=>shift(-1),next:()=>shift(1),tod:()=>{setMonth(Date.now());render()},
