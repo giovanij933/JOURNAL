@@ -580,7 +580,7 @@ function review(day){
   const fees=r2(T.reduce((a,t)=>a+t.fee+t.comm,0)),pts=t=>(t.exit-t.entry)*(t.side==='Short'?-1:1);
   const sec=(h,b)=>b?`<section class="rv"><h4>${h}</h4>${b}</section>`:'';
   // the day
-  let out=sec('The day',`<p>On <b>${pd(day).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</b> you took ${pl(n,'trade')}${U.acct==='all'?'':` on ${esc(U.acct)}`} and finished ${$$(pnl)} net. `+
+  let out=sec('The day',`<p>On <b>${pd(day).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</b> I took ${pl(n,'trade')}${U.acct==='all'?'':` on ${esc(U.acct)}`} and finished ${$$(pnl)} net. `+
     `${W.length} won, ${L.length} lost${be?`, ${be} scratched at breakeven`:''}. ${pnl>0?'A green day.':pnl<0?'A red day.':'A flat day.'}${fees?` Fees and commissions came to ${usd(fees)}.`:''}</p>`);
   // in context: the 20 trading days before, the week so far, the streak
   const D={};all.forEach(t=>{(D[t.day]??={p:0,n:0}).p+=t.pnl;D[t.day].n++});
@@ -588,17 +588,17 @@ function review(day){
   const ws=(d=>{d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)})(pd(day)),wk=Object.keys(D).filter(k=>k>=ws&&k<=day),wp=r2(wk.reduce((a,k)=>a+D[k].p,0));
   let st=0;for(const k of Object.keys(D).filter(k=>k<=day).sort().reverse()){const g=Math.sign(D[k].p);if(!g||(st&&Math.sign(st)!==g))break;st+=g}
   const over=an!=null&&an>=2&&n>=an*1.5;
-  out+=sec('In context',prev.length?`<p>Over your last ${pl(prev.length,'trading day')} you averaged ${$$(r2(ap))} and ${Math.round(an*10)/10} trades a day, so today was ${pnl>ap?'<b>better</b> than usual':pnl<ap?'<b>worse</b> than usual':'<b>about average</b>'}. `+
-    `You took ${n} trade${n===1?'':'s'} against your usual ${Math.round(an)}${over?' — <b>noticeably more</b>':''}.</p>`+
+  out+=sec('In context',prev.length?`<p>Over my last ${pl(prev.length,'trading day')} I averaged ${$$(r2(ap))} and ${Math.round(an*10)/10} trades a day, so today was ${pnl>ap?'<b>better</b> than usual':pnl<ap?'<b>worse</b> than usual':'<b>about average</b>'}. `+
+    `I took ${n} trade${n===1?'':'s'} against my usual ${Math.round(an)}${over?' — <b>noticeably more</b>':''}.</p>`+
     `<p>Week to date: ${$$(wp)} over ${pl(wk.length,'day')} (${wk.filter(k=>D[k].p>0).length} green).${Math.abs(st)>=2?` That's ${Math.abs(st)} ${st>0?'green':'red'} days in a row.`:''}</p>`
-    :`<p>This is the first trading day in your journal${U.acct==='all'?'':' for this account'}, so there's nothing to compare it with yet.</p>`);
+    :`<p>This is the first trading day in my journal${U.acct==='all'?'':' for this account'}, so there's nothing to compare it with yet.</p>`);
   // the trades in order, with the running P&L
   let run=0,peak=-Infinity,pk=0,low=Infinity;
   const rows=T.map((t,i)=>{run=r2(run+t.pnl);if(run>peak){peak=run;pk=i+1}low=Math.min(low,run);
     return `<li>${hm(t.open)} · <b>${t.side} ${esc(t.contract)}</b> ×${t.qty} · held ${dur((t.close-t.open)/1000)} · ${pts(t)>=0?'+':''}${+pts(t).toFixed(2)} pts · ${$$(t.pnl)}`+
       `<span class="tr"><span class="ui-sr"> · </span>running ${usd(run,1)}${t.note?` · <q>${esc(t.note)}</q>`:''}</span></li>`}).join('');
   const gave=n>1&&peak>0?r2(peak-pnl):0,gaveBig=gave>=Math.max(100,peak*.25);
-  out+=sec('How it unfolded',`<ol>${rows}</ol>`+(n>1?`<p>${peak>0?`Your P&amp;L peaked at ${$$(peak)} after trade ${pk}`:'You were never up on the day'}${low<0&&pnl>0?` and was ${$$(r2(low))} at its lowest before you came back`:''}${gaveBig?`; you gave back <b class="neg">${usd(gave)}</b> from there`:''}.</p>`:''));
+  out+=sec('How it unfolded',`<ol>${rows}</ol>`+(n>1?`<p>${peak>0?`My P&amp;L peaked at ${$$(peak)} after trade ${pk}`:'I was never up on the day'}${low<0&&pnl>0?` and was ${$$(r2(low))} at its lowest before I came back`:''}${gaveBig?`; I gave back <b class="neg">${usd(gave)}</b> from there`:''}.</p>`:''));
   // what went well / what to look at
   const best=T.reduce((a,t)=>t.pnl>(a?.pnl??-Infinity)?t:a,null),worst=T.reduce((a,t)=>t.pnl<(a?.pnl??Infinity)?t:a,null);
   const hw=avg(W.map(mins)),hl=avg(L.map(mins));
@@ -606,30 +606,30 @@ function review(day){
   let ls=0,lsMax=0;T.forEach(t=>{ls=t.pnl<0?ls+1:0;lsMax=Math.max(lsMax,ls)});
   const good=[],look=[];
   if(best&&best.pnl>0)good.push(`Best trade: ${hm(best.open)} ${best.side} ${esc(best.contract)} for ${$$(best.pnl)}${best.note?` — <q>${esc(best.note)}</q>`:''}.`);
-  if(hw!=null&&hl!=null&&hw>hl)good.push(`You let winners run (${m(hw)} on average) and cut losers faster (${m(hl)}). That's the right way round.`);
-  if(n&&T[0].pnl>0)good.push('You started the day with a win.');
-  if(pnl>0&&!gaveBig&&n>1)good.push('You kept most of what you made: no big give-back from the high.');
+  if(hw!=null&&hl!=null&&hw>hl)good.push(`I let winners run (${m(hw)} on average) and cut losers faster (${m(hl)}). That's the right way round.`);
+  if(n&&T[0].pnl>0)good.push('I started the day with a win.');
+  if(pnl>0&&!gaveBig&&n>1)good.push('I kept most of what I made: no big give-back from the high.');
   if(L.length&&!fast.length)good.push('No quick re-entries after a loss.');
   if(worst&&worst.pnl<0)look.push(`Worst trade: ${hm(worst.open)} ${worst.side} ${esc(worst.contract)} for ${$$(worst.pnl)}${worst.note?` — <q>${esc(worst.note)}</q>`:''}.`);
-  if(hw!=null&&hl!=null&&hl>hw)look.push(`Losers were held longer than winners (${m(hl)} vs ${m(hw)}). Were your stops where the plan said?`);
+  if(hw!=null&&hl!=null&&hl>hw)look.push(`Losers were held longer than winners (${m(hl)} vs ${m(hw)}). Were my stops where the plan said?`);
   if(fast.length)look.push(`${pl(fast.length,'trade')} ${fast.length===1?'was':'were'} entered within 5 minutes of a loss (${fast.map(t=>hm(t.open)).join(', ')}). Planned, or a reaction?`);
   if(lsMax>=3)look.push(`${lsMax} losses in a row at one point.`);
-  if(gaveBig)look.push(`You gave back ${usd(gave)} after the peak of ${usd(peak,1)}.`);
+  if(gaveBig)look.push(`I gave back ${usd(gave)} after the peak of ${usd(peak,1)}.`);
   if(over)look.push(`More trades than usual (${n} vs about ${Math.round(an)}).`);
-  out+=sec('What went well',good.length?`<ul>${good.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>Nothing stands out in the numbers. Look at your execution instead.</p>');
+  out+=sec('What went well',good.length?`<ul>${good.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>Nothing stands out in the numbers. Look at my execution instead.</p>');
   out+=sec('What to look at',look.length?`<ul>${look.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>No warning signs in the numbers.</p>');
   // the morning check-in from TODAY, when there is one for this date
   let ci=null;try{ci=(JSON.parse(localStorage.getItem('isx.checkin.v1'))?.log||[]).find(e=>e.day===day)}catch(e){}
   if(ci){const Q=['','poor','restless','OK','good','great'],E=['','drained','low','steady','good','charged'];
-    out+=sec('Your state',`<p>You slept <b>${ci.sleep} h</b> (${Q[ci.q]||'—'} sleep) and your energy was <b>${E[ci.energy]||'—'}</b>.${ci.sleep<7&&pnl<0?' Short sleep on a red day: worth watching if it repeats.':''}</p>`)}
-  out+=sec('Your notes',S.notes[day]?`<blockquote>${esc(S.notes[day])}</blockquote>`:'<p>No notes for this day yet.</p>');
+    out+=sec('My state',`<p>I slept <b>${ci.sleep} h</b> (${Q[ci.q]||'—'} sleep) and my energy was <b>${E[ci.energy]||'—'}</b>.${ci.sleep<7&&pnl<0?' Short sleep on a red day: worth watching if it repeats.':''}</p>`)}
+  out+=sec('My notes',S.notes[day]?`<blockquote>${esc(S.notes[day])}</blockquote>`:'<p>No notes for this day yet.</p>');
   // questions, most specific first
-  const q=['Did every trade follow your plan? Which one didn\'t, and why?'];
-  if(pnl<0)q.push('Did you stop at your daily loss limit, or keep going?');
-  if(gaveBig)q.push(`What made you keep trading after you were up ${usd(peak,1)}?`);
-  if(fast.length)q.push(`What were you feeling after the loss before ${hm(fast[0].open)}, and why re-enter so quickly?`);
-  if(over)q.push(`Which of today's ${n} trades would you skip if you could do the day again?`);
-  if(best&&best.pnl>0)q.push(`What made the ${hm(best.open)} ${esc(best.contract)} trade work? Could you spot it again tomorrow?`);
+  const q=['Did every trade follow my plan? Which one didn\'t, and why?'];
+  if(pnl<0)q.push('Did I stop at my daily loss limit, or keep going?');
+  if(gaveBig)q.push(`What made me keep trading after I was up ${usd(peak,1)}?`);
+  if(fast.length)q.push(`What was I feeling after the loss before ${hm(fast[0].open)}, and why re-enter so quickly?`);
+  if(over)q.push(`Which of today's ${n} trades would I skip if I could do the day again?`);
+  if(best&&best.pnl>0)q.push(`What made the ${hm(best.open)} ${esc(best.contract)} trade work? Could I spot it again tomorrow?`);
   q.push('One thing to repeat tomorrow. One thing to cut.');
   out+=sec('Questions to answer',`<ol>${q.map(x=>`<li>${x}</li>`).join('')}</ol>`);
   return out;
