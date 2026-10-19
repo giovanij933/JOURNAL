@@ -716,6 +716,7 @@ const ACT={
   clear:()=>{if(confirm('Delete ALL trades and notes on this device?')){S={trades:[],notes:{},roll:S.roll};save();U.range='all';boot()}},
   prev:()=>shift(-1),next:()=>shift(1),tod:()=>{setMonth(Date.now());render()},
   day:v=>{U.range=U.range===v?'all':v;U.page=0;render()},
+  rng:v=>{U.range=U.range===v?'all':v;U.page=0;render()},   // the Today card's period tiles; tap again for all time
   xf:v=>{const i=v.indexOf(':'),k=v.slice(0,i);let x=v.slice(i+1);if(k==='hour'||k==='wd')x=+x;
     if(k==='stat')U.stat=U.stat===x?'all':x;else if(U.x[k]===x)delete U.x[k];else U.x[k]=x;U.page=0;render()},
   xclr:k=>{if(k==='stat')U.stat='all';else if(k==='range')U.range='all';else delete U.x[k];U.page=0;render()},
@@ -755,16 +756,21 @@ addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.isx
 /* ---------- today at a glance (shared hero, timeline and motion from ui.js) ---------- */
 function heroToday(){
   if(!S.trades.length)return '';
-  const t=tday(Date.now()),T=S.trades.filter(x=>tday(x.close)===t).sort((a,b)=>a.close-b.close),pnl=T.reduce((a,x)=>a+net(x),0),w=T.filter(x=>net(x)>0).length;
-  // a trading week runs Monday to Friday: Saturday and Sunday (incl. Saturday evening after the roll) still show the
-  // week that just ended, instead of an empty new one
-  const d=new Date(t+'T12:00:00'),wkend=d.getDay()===0||d.getDay()===6;d.setDate(d.getDate()-(d.getDay()+6)%7);const ws=ymd(d),D={};
-  S.trades.forEach(x=>{const k=tday(x.close);if(k>=ws&&k<=t)D[k]=(D[k]||0)+net(x)});
-  const days=Object.values(D),green=days.filter(v=>v>0).length,wk=days.reduce((a,v)=>a+v,0);
-  return UI.hero({key:'journal',title:'Today',sub:T.length?`${T.length} trade${T.length>1?'s':''} · ${w} won · week ${usd(wk,1)}`:wkend?'Weekend · markets closed':`No trades yet today · week ${usd(wk,1)}`,
-    // P&L reads green for a gain and red for a loss; flat stays neutral
-    big:(v=>({...v,tone:v.n>0?'pos':v.n<0?'neg':''}))(!T.length&&wkend?{value:usd(wk,1),label:'this week',n:wk}:{value:usd(pnl,1),label:'net today',n:pnl}),
-    rings:[{key:'wr',label:'Win rate',value:T.length?Math.round(w/T.length*100):0,max:100,display:T.length?`${Math.round(w/T.length*100)}%`:'—',done:T.length>0&&w===T.length},{key:'green',label:'Green days',value:green,max:Math.max(1,days.length),display:days.length?`${green}/${days.length} this wk`:'—',done:days.length>0&&green===days.length}],
+  const t=tday(Date.now()),dd=new Date(t+'T12:00:00'),wkend=dd.getDay()===0||dd.getDay()===6;
+  // net P&L per trading day; the week runs Monday to Sunday and the month is the calendar month, the same periods as
+  // the range filter, so a tile can just switch the dashboard to that range
+  const D={},N={};S.trades.forEach(x=>{const k=tday(x.close);D[k]=(D[k]||0)+net(x);N[k]=(N[k]||0)+1});
+  const ws=(d=>{d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)})(new Date(dd)),T=S.trades.filter(x=>tday(x.close)===t).sort((a,b)=>a.close-b.close);
+  const per=f=>{const k=Object.keys(D).filter(f);return{p:r2(k.reduce((a,d)=>a+D[d],0)),n:k.reduce((a,d)=>a+N[d],0),d:k.length,g:k.filter(d=>D[d]>0).length}};
+  const td=per(d=>d===t),wk=per(d=>d>=ws&&d<=t),mo=per(d=>d.slice(0,7)===t.slice(0,7)&&d<=t),w=T.filter(x=>net(x)>0).length;
+  const pl=(n,w)=>`${n} ${w}${n===1?'':'s'}`,tone=v=>v>0?'pos':v<0?'neg':'';
+  const d0=v=>(v>0?'+':'')+usd0(v);   // whole dollars: the tiles have room for the figure, not the cents
+  const tile=(k,label,x,sub)=>({label,value:x.n?d0(x.p):'—',tone:x.n?tone(x.p):'',sub,attrs:{'data-a':'rng','data-v':k,'aria-label':`${label}: ${x.n?usd(x.p,1):'no trades'}. Show ${label.toLowerCase()} below`},on:U.range===k});
+  const noted=!!(S.notes[t]||'').trim();
+  return UI.hero({key:'journal',title:'Today',sub:wkend?'Weekend · markets closed':noted?"Today's notes written ✓":T.length?"Today's notes still to write":'No trades yet today',
+    stats:[tile('today','Today',td,td.n?`${pl(td.n,'trade')} · ${w} won`:wkend?'closed':'no trades yet'),
+      tile('week','Week',wk,wk.d?`${pl(wk.d,'day')} · ${wk.g} green`:'no trades yet'),
+      tile('month','Month',mo,mo.d?`${pl(mo.d,'day')} · ${mo.g} green`:'no trades yet')],
     action:{label:'+ Trade',attrs:{'data-a':'add'}},
     log:T.map(x=>({at:x.close,tag:`${x.side} ${x.contract}`,text:`×${x.qty} · ${usd(net(x),1)}`,tone:net(x)>0?'pos':net(x)<0?'neg':''}))});
 }
