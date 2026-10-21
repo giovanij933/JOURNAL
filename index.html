@@ -147,7 +147,7 @@ dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .pm-r{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.pm-r span{flex:1 1 260px}.pm-r button{flex:none;padding:4px 10px;font-size:11px}
 .pm-ck{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}
 .pm-ck label{flex-direction:row;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--g-line2);border-radius:var(--g-r3);background:rgba(255,255,255,.035);font-size:13px;letter-spacing:0;text-transform:none;color:var(--tx);cursor:pointer}
-.pm-ck label:has(:checked){border-color:rgba(255,176,0,.45);background:rgba(255,176,0,.07)}.pm-ck label:has(:focus-visible){border-color:var(--amber)}
+.pm-ck label:has(:checked){border-color:rgba(255,176,0,.45);background:rgba(255,176,0,.07)}.pm-ck label:has(:focus-visible){border-color:var(--amber)}.pm-ck label:has(:disabled){opacity:.5;cursor:default}
 .pm-ck input{width:16px;height:16px;margin:0;padding:0;flex:none;accent-color:var(--amber);box-shadow:none}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:var(--panel);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
 #toast.on{opacity:1}
@@ -479,13 +479,15 @@ ${table(T)}`;
 // the value seen most often, the latest one on a tie
 const most=a=>{const c={};a.forEach(v=>c[v]=(c[v]||0)+1);return a.reduceRight((b,v)=>c[v]>(c[b]||0)?v:b,undefined)};
 function tradeForm(t){
-  // a new trade starts from my usual: the contract and size I traded most in my last 20 trades, the account I used
-  // last, and the fees of my last trade in that contract
+  // a new trade starts from my usual: the market (NQ, ES…) and size I traded most in my last 20 trades, in the latest
+  // contract month I used for it (so a roll carries over at once), the account I used last, and the fees of my last
+  // trade in that market
   const R=[...S.trades].sort((a,b)=>a.close-b.close),L20=R.slice(-20),last=R.at(-1)||{},now=Date.now();
-  const ct=most(L20.map(x=>x.contract)),same=L20.filter(x=>x.contract===ct),ref=same.at(-1)||last;
-  const d=t||{account:last.account||'',contract:ct||'NQ',side:'Long',qty:most(same.map(x=>x.qty))||1,entry:'',exit:'',open:now-60000,close:now,mult:'',fee:ref.fee??0,comm:ref.comm??0,note:''};
-  // $ per point: the standard one, else what I used last for that market
-  const MU={};R.forEach(x=>{if(x.mult>0)MU[root(x.contract)]=x.mult});
+  const rt=most(L20.map(x=>root(x.contract))),same=L20.filter(x=>root(x.contract)===rt),ref=same.at(-1)||last;
+  const d=t||{account:last.account||'',contract:ref.contract||'NQ',side:'Long',qty:most(same.map(x=>x.qty))||1,entry:'',exit:'',open:now-60000,close:now,mult:'',fee:ref.fee??0,comm:ref.comm??0,note:''};
+  // $ per point: the standard one, else what I used last for that market. 1 is what an import puts in for a market it
+  // doesn't know, so it isn't remembered: the field stays blank until I enter the real value
+  const MU={};R.forEach(x=>{if(x.mult>0&&x.mult!==1)MU[root(x.contract)]=x.mult});
   dlg.innerHTML=`<form id="tf"><h3>${t?'EDIT':'NEW'} TRADE</h3>
   <div class="fgrid">
    <label>Account<input name="account" list="accts" required value="${esc(d.account)}"></label>
@@ -649,8 +651,9 @@ function rvDefault(){
   return /^\d{4}-/.test(U.range)&&D.includes(U.range)?U.range:D.includes(t)?t:D.filter(d=>d<=t).at(-1)||D.at(-1);
 }
 function review(day){
-  const all=S.trades.filter(t=>U.acct==='all'||t.account===U.acct).map(t=>({...t,pnl:net(t),day:tday(t.close)}));
-  const T=all.filter(t=>t.day===day).sort((a,b)=>a.close-b.close);
+  const every=S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)})),all=U.acct==='all'?every:every.filter(t=>t.account===U.acct);
+  // the pre-market plan's max loss is a stop for the whole day, so it's checked against every account's trades
+  const onDay=(A,k)=>A.filter(t=>t.day===k).sort((a,b)=>a.close-b.close),T=onDay(all,day);
   const n=T.length,W=T.filter(t=>t.pnl>0),L=T.filter(t=>t.pnl<0),be=n-W.length-L.length,pnl=r2(T.reduce((a,t)=>a+t.pnl,0));
   const $$=v=>`<b class="${cls(v)}">${usd(v,1)}</b>`,pl=(k,w)=>`${k} ${w}${k===1?'':'s'}`,hm=ms=>new Date(ms).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
   const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,m=v=>v<1?'under a minute':Math.round(v)+' min';
@@ -661,11 +664,12 @@ function review(day){
     `${W.length} won, ${L.length} lost${be?`, ${be} scratched at breakeven`:''}. ${pnl>0?'A green day.':pnl<0?'A red day.':'A flat day.'}${fees?` Fees and commissions came to ${usd(fees)}.`:''}</p>`);
   // the pre-market plan, when I opened one for this day: the focus rule, and whether I kept to the max loss
   const P=S.plans[day];
-  if(P){const hit=hitAt(T,P.loss),at=hit<0?0:r2(T.slice(0,hit+1).reduce((a,t)=>a+t.pnl,0)),miss=CHK.filter(([k])=>!P.ticks?.[k]).map(c=>c[1]);
-    const after=hit<n-1?` and took ${pl(n-1-hit,'more trade')} after that`:' and stopped there';
+  if(P){const TA=U.acct==='all'?T:onDay(every,day),na=TA.length,pa=r2(TA.reduce((a,t)=>a+t.pnl,0)),lead=na>n?'Across all my accounts, ':'';
+    const hit=hitAt(TA,P.loss),at=hit<0?0:r2(TA.slice(0,hit+1).reduce((a,t)=>a+t.pnl,0)),miss=CHK.filter(([k])=>!ticked(P,k)).map(c=>c[1]);
+    const after=hit<na-1?` and took ${pl(na-1-hit,'more trade')} after that`:' and stopped there';
     out+=sec('My plan',`<p>My focus rule for the day: <b>${esc(P.rule)}</b> Did I follow it?</p>`+
-      `<p>${!(P.loss>0)?"I didn't set a max loss.":`My max loss was <b>${usd0(-P.loss)}</b>. `+(pnl<-P.loss?`I finished at ${$$(pnl)}: <b class="neg">past my max-loss line by ${usd(-P.loss-pnl)}</b>. I reached it on trade ${hit+1}${after}.`
-        :hit<0?'I stayed inside it.':`I reached it on trade ${hit+1} (${usd(at)})${after}. I finished at ${$$(pnl)}.`)}</p>`+
+      `<p>${!(P.loss>0)?"I didn't set a max loss.":`My max loss was <b>${usd0(-P.loss)}</b>. ${lead}`+(pa<-P.loss?`I finished at ${$$(pa)}: <b class="neg">past my max-loss line by ${usd(-P.loss-pa)}</b>. I reached it on trade ${hit+1}${after}.`
+        :hit<0?'I stayed inside it.':`I reached it on trade ${hit+1} (${usd(at)})${after}. I finished at ${$$(pa)}.`)}</p>`+
       `<p>${miss.length?`I ticked ${CHK.length-miss.length} of ${CHK.length} on my checklist (missed: ${miss.join(', ')}).`:'I ticked my whole checklist before the open.'}</p>`)}
   // in context: the 20 trading days before, the week so far, the streak
   const D={};all.forEach(t=>{(D[t.day]??={p:0,n:0}).p+=t.pnl;D[t.day].n++});
@@ -705,11 +709,11 @@ function review(day){
     out+=sec('My state',`<p>I slept <b>${ci.sleep} h</b> (${Q[ci.q]||'—'} sleep) and my energy was <b>${E[ci.energy]||'—'}</b>.${ci.sleep<7&&pnl<0?' Short sleep on a red day: worth watching if it repeats.':''}</p>`)}
   out+=sec('My notes',S.notes[day]?`<blockquote>${esc(S.notes[day])}</blockquote>`:'<p>No notes for this day yet.</p>');
   // once the week is over (the weekend, or later), its last trading day's review looks back over the whole week
-  const wkOver=wk.length>1&&tday(Date.now())>addd(ws,4)&&!Object.keys(D).some(k=>k>day&&k<addd(ws,7));
+  const wkOver=tday(Date.now())>addd(ws,4)&&!Object.keys(D).some(k=>k>day&&k<addd(ws,7));
   if(wkOver){const by=[...wk].sort((a,b)=>D[b].p-D[a].p),wn=k=>pd(k).toLocaleDateString('en-US',{weekday:'long'}),PW=wk.filter(k=>S.plans[k]),PL=PW.filter(k=>S.plans[k].loss>0);
-    const inside=PL.filter(k=>hitAt(all.filter(t=>t.day===k).sort((a,b)=>a.close-b.close),S.plans[k].loss)<0).length;
-    out+=sec('My week',`<p>This week I traded ${pl(wk.length,'day')} for ${$$(wp)}: ${wk.filter(k=>D[k].p>0).length} green, ${wk.filter(k=>D[k].p<0).length} red. `+
-      `My best day was ${wn(by[0])} (${$$(r2(D[by[0]].p))}), my worst ${wn(by.at(-1))} (${$$(r2(D[by.at(-1)].p))}).</p>`+
+    const inside=PL.filter(k=>hitAt(onDay(every,k),S.plans[k].loss)<0).length;
+    out+=sec('My week',`<p>This week I traded ${pl(wk.length,'day')} for ${$$(wp)}: ${wk.filter(k=>D[k].p>0).length} green, ${wk.filter(k=>D[k].p<0).length} red.`+
+      (wk.length>1?` My best day was ${wn(by[0])} (${$$(r2(D[by[0]].p))}), my worst ${wn(by.at(-1))} (${$$(r2(D[by.at(-1)].p))}).`:'')+'</p>'+
       (PW.length?`<p>I opened my pre-market plan on ${PW.length} of ${pl(wk.length,'day')}${PL.length?` and stayed inside my max loss on ${inside===PL.length?(inside===1?'it':'all of them'):`${inside} of ${PL.length}`}`:''}. `+
         `My focus rules: ${PW.map(k=>esc(S.plans[k].short)).join('; ')}.</p>`:"<p>I didn't open a pre-market plan this week.</p>"))}
   // questions, most specific first
@@ -749,6 +753,8 @@ function reviewText(){
    past days, plus my worst hour, market and weekday): the one I focused on least recently comes next. Under 20 trades,
    plain process rules take turns instead. */
 const PMIN=5,CHK=[['lv','Levels marked'],['nw','News checked'],['ml','Max loss set'],['fr','Focus rule read']];
+// a tick on the checklist; "Max loss set" only counts while the day has a max loss
+const ticked=(p,k)=>!!p.ticks?.[k]&&(k!=='ml'||p.loss>0);
 const PROC=[['p1','Every trade has its stop in before I enter.','stop in before entry'],['p2','Only the setups I wrote down before the open.','only my written setups'],
   ['p3','After a loss, I wait 5 minutes before the next entry.','5 min pause after a loss'],['p4','Same size on every trade today.','same size every trade'],
   ['p5',"At my max loss I'm done for the day.",'done at max loss']];
@@ -765,13 +771,15 @@ function premkt(day){
   const an=dk.length?n/dk.length:null,F=dk.map(k=>dayLook(G[k],an)),exp=n?H.reduce((a,t)=>a+t.pnl,0)/n:0;
   // where my edge is: hour blocks (by entry hour) and markets (by contract root) with at least PMIN trades each
   const top=(a,s)=>a.filter(g=>g.n>=PMIN&&g.pnl*s>0).sort((x,y)=>(y.pnl-x.pnl)*s);
-  const HB=groups(H,ohr),IN=groups(H,t=>root(t.contract)),bh=top(HB,1)[0],wh=top(HB,-1)[0],bi=top(IN,1).slice(0,2),wi=IN.length>1&&top(IN,-1)[0];
+  // my worst market only counts when I trade another one often enough to switch to
+  const HB=groups(H,ohr),IN=groups(H,t=>root(t.contract)),bh=top(HB,1)[0],wh=top(HB,-1)[0],bi=top(IN,1).slice(0,2),wi=IN.filter(g=>g.n>=PMIN).length>1&&top(IN,-1)[0];
   // my weak spots, in this order while none has been a focus yet: [key, rule, short, why]
   const C=[];
   if(!thin){
     const W=H.filter(t=>t.pnl>0),L=H.filter(t=>t.pnl<0),mins=t=>(t.close-t.open)/6e4,avg=a=>a.reduce((x,y)=>x+y,0)/a.length,m=v=>v<1?'under a minute':Math.round(v)+' min';
     const hw=W.length>2?avg(W.map(mins)):null,hl=L.length>2?avg(L.map(mins)):null;
-    if(hw!=null&&hl>hw)C.push(['hold',`Out at my stop: no loser gets more time than my average winner (${m(hw)}).`,'cut losers on time',`My losers lasted ${m(hl)} on average, my winners ${m(hw)}.`]);
+    // losers held clearly longer: by a fifth or more, and far enough apart to show in whole minutes
+    if(hw!=null&&hl!=null&&hl>=hw*1.2&&m(hl)!==m(hw))C.push(['hold',`Out at my stop: no loser gets more time than my average winner (${m(hw)}).`,'cut losers on time',`My losers lasted ${m(hl)} on average, my winners ${m(hw)}.`]);
     const fast=F.flatMap(f=>f.fast),fp=r2(fast.reduce((a,t)=>a+t.pnl,0));
     if(fast.length>=3&&fp/fast.length<exp)C.push(['fast','After a loss, I wait 5 minutes before the next entry.','5 min pause after a loss',`${fast.length} of my trades came within 5 minutes of a loss; together they made ${usd(fp,1)}.`]);
     const sk=F.filter(f=>f.lsMax>=3).length;
@@ -814,13 +822,14 @@ function planForm(){
     ${sec('Where my edge is',edge)}
     ${sec('My max loss',`<p class="pm-ml"><label for="pml">Stop for the day at</label><span>−$<input id="pml" type="number" min="0" step="any" inputmode="decimal" placeholder="set one" value="${p.loss>0?p.loss:''}"></span></p><p class="dim" id="pmh"></p>${T.length?'<p id="pmt"></p>':''}`)}
     ${sec('My focus',`<p class="pm-f"><b id="pmr"></b></p><p class="dim" id="pmw"></p><p class="dim pm-r"><span>${note}</span>${P.R.length>1?'<button type="button" data-pm="swap">OTHER RULE</button>':''}</p>`)}
-    ${sec('Before the open',`<div class="pm-ck">${CHK.map(([k,l])=>`<label><input type="checkbox" data-pm="${k}"${p.ticks[k]?' checked':''}>${l}</label>`).join('')}</div>`)}
+    ${sec('Before the open',`<div class="pm-ck">${CHK.map(([k,l])=>`<label><input type="checkbox" data-pm="${k}"${ticked(p,k)?' checked':''}>${l}</label>`).join('')}</div>`)}
     <div class="fa2"><span class="dim" id="pms" role="status"></span><button type="button" class="pri" data-a="x">DONE</button></div></div>`;
   const paint=()=>{
     $('#pmh').textContent=!(p.loss>0)?(P.loss?`No line for this day. My default is ${usd0(P.loss)}.`:P.why):p.loss===P.loss?P.why:`Set for this day.${P.loss?` My default is ${usd0(P.loss)}.`:''}`;
     if(T.length)$('#pmt').innerHTML=`So far: ${$$(np)} over ${pls(T.length,'trade')}.`+(p.loss>0&&np<=-p.loss?` <b class="neg">I've reached my max-loss line: done for the day.</b>`:'');
     $('#pmr').textContent=p.rule;$('#pmw').textContent=p.why||'';$('#pmw').hidden=!p.why;
-    const k=CHK.filter(([k])=>p.ticks[k]).length;$('#pms').textContent=k===CHK.length?'Ready ✓':`${k} of ${CHK.length} ticked`;
+    const ml=el.querySelector('[data-pm=ml]');ml.disabled=!(p.loss>0);ml.checked=ticked(p,'ml');
+    const k=CHK.filter(([k])=>ticked(p,k)).length;$('#pms').textContent=k===CHK.length?'Ready ✓':`${k} of ${CHK.length} ticked`;
   };
   const el=$('#pmf');let dirty=false;
   el.addEventListener('input',e=>{if(e.target.id==='pml'){const v=+e.target.value;p.loss=v>0?r2(v):null;dirty=true;paint()}});
@@ -843,7 +852,7 @@ function planRows(){
       const k=Object.keys(D),v=r2(k.reduce((a,d)=>a+D[d],0));
       return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last day',act:'review'}}
     const P=premkt(day),p=S.plans[day],f=p||P.pick,loss=p?p.loss:P.loss;
-    return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>p.ticks?.[k])};
+    return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>ticked(p,k))};
   };
   const now=new Date();
   if(!S.roll||now.getHours()>=S.roll)return [row(+now)];
