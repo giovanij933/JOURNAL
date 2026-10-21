@@ -139,6 +139,16 @@ dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .rv .tr{display:block;color:var(--dim);font-size:12px}
 .rv blockquote{margin:0 0 8px;padding:2px 0 2px 12px;border-left:2px solid var(--amber);white-space:pre-wrap}
 .fa2 span{margin-right:auto}
+/* pre-market plan: the review's sections, plus the max-loss field, the focus rule and a checklist to tick */
+.pm-ml{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pm-ml label{display:inline;font-size:inherit;letter-spacing:0;text-transform:none;color:var(--tx)}
+.pm-ml span{display:inline-flex;align-items:center;gap:4px}.pm-ml input{width:120px}
+.pm-f{font-size:15px}.rvh h3:focus{outline:0;box-shadow:none}.ui-set input[data-f]{width:110px;flex:none}
+.pm-r{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.pm-r span{flex:1 1 260px}.pm-r button{flex:none;padding:4px 10px;font-size:11px}
+.pm-ck{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}
+.pm-ck label{flex-direction:row;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--g-line2);border-radius:var(--g-r3);background:rgba(255,255,255,.035);font-size:13px;letter-spacing:0;text-transform:none;color:var(--tx);cursor:pointer}
+.pm-ck label:has(:checked){border-color:rgba(255,176,0,.45);background:rgba(255,176,0,.07)}.pm-ck label:has(:focus-visible){border-color:var(--amber)}
+.pm-ck input{width:16px;height:16px;margin:0;padding:0;flex:none;accent-color:var(--amber);box-shadow:none}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:var(--panel);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
 #toast.on{opacity:1}
 
@@ -148,6 +158,7 @@ dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
   .g4,.fgrid{grid-template-columns:1fr}
   .cd{min-height:50px;padding:3px}.cd em{display:none}.cd b{font-size:10px}
   .eqs{gap:14px}
+  .pm-ck{grid-template-columns:1fr}
 }
 h1.brand{margin:0}
 </style>
@@ -157,6 +168,7 @@ h1.brand{margin:0}
   <h1 class="brand">ISIONXXX <b>//</b> JOURNAL<i class="cur"></i></h1>
   <div class="acts">
     <button class="pri" data-a="add">+ TRADE</button>
+    <button data-a="plan">PLAN</button>
     <button data-a="note">NOTES</button>
     <button data-a="review" data-more>REVIEW</button>
     <button data-a="imp" data-more>IMPORT</button>
@@ -206,6 +218,7 @@ const pad=n=>String(n).padStart(2,'0');
 const r2=v=>Math.round(v*100)/100;
 const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const pd=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const addd=(s,k)=>{const d=pd(s);d.setDate(d.getDate()+k);return ymd(d)};
 const dtl=ms=>{const d=new Date(ms);return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
 // formatters made once: toLocaleString builds a new one on every call, which adds up over long tables and charts
 const FMT={dmy:new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year:'numeric'}),dt:new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}),
@@ -226,10 +239,12 @@ const net=t=>r2((t.exit-t.entry)*(t.side==='Short'?-1:1)*t.qty*t.mult-t.fee-t.co
 let S=load();
 const U={acct:'all',stat:'all',range:'all',page:0,month:null,x:{}};   // x: cross-filters set by clicking a card (dres, hour, wd, inst, side)
 function load(){
-  try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.trades))return {trades:s.trades,notes:s.notes||{},roll:s.roll??18}}catch(e){}
-  return {trades:[],notes:{},roll:18};
+  try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.trades))return state(s)}catch(e){}
+  return state({});
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage write failed — take a backup')}}
+// plans: the pre-market plan of each trading day; maxLoss: the daily stop from Settings (null: from my red days)
+function state(s){return {trades:s.trades||[],notes:s.notes||{},roll:s.roll??18,plans:s.plans||{},maxLoss:s.maxLoss>0?s.maxLoss:null}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));UI.replan()}catch(e){toast('Storage write failed — take a backup')}}
 // trading day: anything at/after the roll hour belongs to the next date (Sunday 6 PM open -> Monday)
 function tday(ms){const d=new Date(ms);if(S.roll&&d.getHours()>=S.roll)d.setDate(d.getDate()+1);return ymd(d)}
 function setMonth(ms){const d=pd(tday(ms));U.month={y:d.getFullYear(),m:d.getMonth()}}
@@ -461,9 +476,16 @@ ${table(T)}`;
 }
 
 /* ---------- dialogs ---------- */
+// the value seen most often, the latest one on a tie
+const most=a=>{const c={};a.forEach(v=>c[v]=(c[v]||0)+1);return a.reduceRight((b,v)=>c[v]>(c[b]||0)?v:b,undefined)};
 function tradeForm(t){
-  const last=S.trades[S.trades.length-1]||{},now=Date.now();
-  const d=t||{account:last.account||'',contract:last.contract||'NQ',side:'Long',qty:1,entry:'',exit:'',open:now-60000,close:now,mult:'',fee:last.fee??0,comm:last.comm??0,note:''};
+  // a new trade starts from my usual: the contract and size I traded most in my last 20 trades, the account I used
+  // last, and the fees of my last trade in that contract
+  const R=[...S.trades].sort((a,b)=>a.close-b.close),L20=R.slice(-20),last=R.at(-1)||{},now=Date.now();
+  const ct=most(L20.map(x=>x.contract)),same=L20.filter(x=>x.contract===ct),ref=same.at(-1)||last;
+  const d=t||{account:last.account||'',contract:ct||'NQ',side:'Long',qty:most(same.map(x=>x.qty))||1,entry:'',exit:'',open:now-60000,close:now,mult:'',fee:ref.fee??0,comm:ref.comm??0,note:''};
+  // $ per point: the standard one, else what I used last for that market
+  const MU={};R.forEach(x=>{if(x.mult>0)MU[root(x.contract)]=x.mult});
   dlg.innerHTML=`<form id="tf"><h3>${t?'EDIT':'NEW'} TRADE</h3>
   <div class="fgrid">
    <label>Account<input name="account" list="accts" required value="${esc(d.account)}"></label>
@@ -486,7 +508,7 @@ function tradeForm(t){
     open:new Date(e.open.value).getTime(),close:new Date(e.close.value).getTime(),mult:+e.mult.value,fee:+e.fee.value||0,comm:+e.comm.value||0,note:e.note.value.trim()});
   const sync=ev=>{
     if(ev&&ev.target.name==='mult')touched=true;
-    if(!touched)e.mult.value=SPEC[root(e.contract.value)]??'';
+    if(!touched)e.mult.value=SPEC[root(e.contract.value)]??MU[root(e.contract.value)]??'';
     const v=read(),ok=e.entry.value!==''&&e.exit.value!==''&&v.mult>0&&v.qty>0;
     $('#pv').innerHTML=ok?`NET <b class="${cls(net(v))}">${usd(net(v),1)}</b>`:'';
   };
@@ -609,6 +631,18 @@ function sample(){
 /* ---------- daily review: a script to read over at the end of each trading day ----------
    Built from the day's trades (in the account filter), the days before it, your notes and the morning check-in.
    Plain sentences first, then the trades in order, what went well, what to look at, and questions to answer. */
+// what the review checks in one day's trades (in close order); an = my usual trades a day. The pre-market plan runs
+// it over my past days to find the weak spots its focus rule rotates through
+function dayLook(T,an){
+  const mins=t=>(t.close-t.open)/6e4,avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,n=T.length,pnl=r2(T.reduce((a,t)=>a+t.pnl,0));
+  let run=0,peak=-Infinity,pk=0,low=Infinity,ls=0,lsMax=0;
+  T.forEach((t,i)=>{run=r2(run+t.pnl);if(run>peak){peak=run;pk=i+1}low=Math.min(low,run);ls=t.pnl<0?ls+1:0;lsMax=Math.max(lsMax,ls)});
+  const gave=n>1&&peak>0?r2(peak-pnl):0;
+  return {pnl,peak,pk,low,lsMax,gave,gaveBig:gave>=Math.max(100,peak*.25),hw:avg(T.filter(t=>t.pnl>0).map(mins)),hl:avg(T.filter(t=>t.pnl<0).map(mins)),
+    fast:T.filter((t,i)=>i&&T.slice(0,i).some(x=>x.pnl<0&&t.open>=x.close&&t.open-x.close<=5*6e4)),over:an!=null&&an>=2&&n>=an*1.5};
+}
+// the trade on which a day's running P&L first reached the max loss (-1: it never did)
+const hitAt=(T,loss)=>{let run=0;return loss>0?T.findIndex(t=>(run=r2(run+t.pnl))<=-loss):-1};
 function rvDays(){const D=new Set();S.trades.forEach(t=>{if(U.acct==='all'||t.account===U.acct)D.add(tday(t.close))});return [...D].sort()}
 function rvDefault(){
   const D=rvDays(),t=tday(Date.now());
@@ -619,34 +653,38 @@ function review(day){
   const T=all.filter(t=>t.day===day).sort((a,b)=>a.close-b.close);
   const n=T.length,W=T.filter(t=>t.pnl>0),L=T.filter(t=>t.pnl<0),be=n-W.length-L.length,pnl=r2(T.reduce((a,t)=>a+t.pnl,0));
   const $$=v=>`<b class="${cls(v)}">${usd(v,1)}</b>`,pl=(k,w)=>`${k} ${w}${k===1?'':'s'}`,hm=ms=>new Date(ms).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-  const mins=t=>(t.close-t.open)/6e4,avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,m=v=>v<1?'under a minute':Math.round(v)+' min';
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,m=v=>v<1?'under a minute':Math.round(v)+' min';
   const fees=r2(T.reduce((a,t)=>a+t.fee+t.comm,0)),pts=t=>(t.exit-t.entry)*(t.side==='Short'?-1:1);
   const sec=(h,b)=>b?`<section class="rv"><h4>${h}</h4>${b}</section>`:'';
   // the day
   let out=sec('The day',`<p>On <b>${pd(day).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</b> I took ${pl(n,'trade')}${U.acct==='all'?'':` on ${esc(U.acct)}`} and finished ${$$(pnl)} net. `+
     `${W.length} won, ${L.length} lost${be?`, ${be} scratched at breakeven`:''}. ${pnl>0?'A green day.':pnl<0?'A red day.':'A flat day.'}${fees?` Fees and commissions came to ${usd(fees)}.`:''}</p>`);
+  // the pre-market plan, when I opened one for this day: the focus rule, and whether I kept to the max loss
+  const P=S.plans[day];
+  if(P){const hit=hitAt(T,P.loss),at=hit<0?0:r2(T.slice(0,hit+1).reduce((a,t)=>a+t.pnl,0)),miss=CHK.filter(([k])=>!P.ticks?.[k]).map(c=>c[1]);
+    const after=hit<n-1?` and took ${pl(n-1-hit,'more trade')} after that`:' and stopped there';
+    out+=sec('My plan',`<p>My focus rule for the day: <b>${esc(P.rule)}</b> Did I follow it?</p>`+
+      `<p>${!(P.loss>0)?"I didn't set a max loss.":`My max loss was <b>${usd0(-P.loss)}</b>. `+(pnl<-P.loss?`I finished at ${$$(pnl)}: <b class="neg">past my max-loss line by ${usd(-P.loss-pnl)}</b>. I reached it on trade ${hit+1}${after}.`
+        :hit<0?'I stayed inside it.':`I reached it on trade ${hit+1} (${usd(at)})${after}. I finished at ${$$(pnl)}.`)}</p>`+
+      `<p>${miss.length?`I ticked ${CHK.length-miss.length} of ${CHK.length} on my checklist (missed: ${miss.join(', ')}).`:'I ticked my whole checklist before the open.'}</p>`)}
   // in context: the 20 trading days before, the week so far, the streak
   const D={};all.forEach(t=>{(D[t.day]??={p:0,n:0}).p+=t.pnl;D[t.day].n++});
   const prev=Object.keys(D).filter(k=>k<day).sort().slice(-20),ap=avg(prev.map(k=>D[k].p)),an=avg(prev.map(k=>D[k].n));
   const ws=(d=>{d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)})(pd(day)),wk=Object.keys(D).filter(k=>k>=ws&&k<=day),wp=r2(wk.reduce((a,k)=>a+D[k].p,0));
   let st=0;for(const k of Object.keys(D).filter(k=>k<=day).sort().reverse()){const g=Math.sign(D[k].p);if(!g||(st&&Math.sign(st)!==g))break;st+=g}
-  const over=an!=null&&an>=2&&n>=an*1.5;
+  const {peak,pk,low,gave,gaveBig,hw,hl,fast,lsMax,over}=dayLook(T,an);
   out+=sec('In context',prev.length?`<p>Over my last ${pl(prev.length,'trading day')} I averaged ${$$(r2(ap))} and ${Math.round(an*10)/10} trades a day, so today was ${pnl>ap?'<b>better</b> than usual':pnl<ap?'<b>worse</b> than usual':'<b>about average</b>'}. `+
     `I took ${n} trade${n===1?'':'s'} against my usual ${Math.round(an)}${over?' — <b>noticeably more</b>':''}.</p>`+
     `<p>Week to date: ${$$(wp)} over ${pl(wk.length,'day')} (${wk.filter(k=>D[k].p>0).length} green).${Math.abs(st)>=2?` That's ${Math.abs(st)} ${st>0?'green':'red'} days in a row.`:''}</p>`
     :`<p>This is the first trading day in my journal${U.acct==='all'?'':' for this account'}, so there's nothing to compare it with yet.</p>`);
   // the trades in order, with the running P&L
-  let run=0,peak=-Infinity,pk=0,low=Infinity;
-  const rows=T.map((t,i)=>{run=r2(run+t.pnl);if(run>peak){peak=run;pk=i+1}low=Math.min(low,run);
+  let run=0;
+  const rows=T.map(t=>{run=r2(run+t.pnl);
     return `<li>${hm(t.open)} · <b>${t.side} ${esc(t.contract)}</b> ×${t.qty} · held ${dur((t.close-t.open)/1000)} · ${pts(t)>=0?'+':''}${+pts(t).toFixed(2)} pts · ${$$(t.pnl)}`+
       `<span class="tr"><span class="ui-sr"> · </span>running ${usd(run,1)}${t.note?` · <q>${esc(t.note)}</q>`:''}</span></li>`}).join('');
-  const gave=n>1&&peak>0?r2(peak-pnl):0,gaveBig=gave>=Math.max(100,peak*.25);
   out+=sec('How it unfolded',`<ol>${rows}</ol>`+(n>1?`<p>${peak>0?`My P&amp;L peaked at ${$$(peak)} after trade ${pk}`:'I was never up on the day'}${low<0&&pnl>0?` and was ${$$(r2(low))} at its lowest before I came back`:''}${gaveBig?`; I gave back <b class="neg">${usd(gave)}</b> from there`:''}.</p>`:''));
   // what went well / what to look at
   const best=T.reduce((a,t)=>t.pnl>(a?.pnl??-Infinity)?t:a,null),worst=T.reduce((a,t)=>t.pnl<(a?.pnl??Infinity)?t:a,null);
-  const hw=avg(W.map(mins)),hl=avg(L.map(mins));
-  const fast=T.filter((t,i)=>i&&T.slice(0,i).some(x=>x.pnl<0&&t.open>=x.close&&t.open-x.close<=5*6e4));
-  let ls=0,lsMax=0;T.forEach(t=>{ls=t.pnl<0?ls+1:0;lsMax=Math.max(lsMax,ls)});
   const good=[],look=[];
   if(best&&best.pnl>0)good.push(`Best trade: ${hm(best.open)} ${best.side} ${esc(best.contract)} for ${$$(best.pnl)}${best.note?` — <q>${esc(best.note)}</q>`:''}.`);
   if(hw!=null&&hl!=null&&hw>hl)good.push(`I let winners run (${m(hw)} on average) and cut losers faster (${m(hl)}). That's the right way round.`);
@@ -666,13 +704,22 @@ function review(day){
   if(ci){const Q=['','poor','restless','OK','good','great'],E=['','drained','low','steady','good','charged'];
     out+=sec('My state',`<p>I slept <b>${ci.sleep} h</b> (${Q[ci.q]||'—'} sleep) and my energy was <b>${E[ci.energy]||'—'}</b>.${ci.sleep<7&&pnl<0?' Short sleep on a red day: worth watching if it repeats.':''}</p>`)}
   out+=sec('My notes',S.notes[day]?`<blockquote>${esc(S.notes[day])}</blockquote>`:'<p>No notes for this day yet.</p>');
+  // once the week is over (the weekend, or later), its last trading day's review looks back over the whole week
+  const wkOver=wk.length>1&&tday(Date.now())>addd(ws,4)&&!Object.keys(D).some(k=>k>day&&k<addd(ws,7));
+  if(wkOver){const by=[...wk].sort((a,b)=>D[b].p-D[a].p),wn=k=>pd(k).toLocaleDateString('en-US',{weekday:'long'}),PW=wk.filter(k=>S.plans[k]),PL=PW.filter(k=>S.plans[k].loss>0);
+    const inside=PL.filter(k=>hitAt(all.filter(t=>t.day===k).sort((a,b)=>a.close-b.close),S.plans[k].loss)<0).length;
+    out+=sec('My week',`<p>This week I traded ${pl(wk.length,'day')} for ${$$(wp)}: ${wk.filter(k=>D[k].p>0).length} green, ${wk.filter(k=>D[k].p<0).length} red. `+
+      `My best day was ${wn(by[0])} (${$$(r2(D[by[0]].p))}), my worst ${wn(by.at(-1))} (${$$(r2(D[by.at(-1)].p))}).</p>`+
+      (PW.length?`<p>I opened my pre-market plan on ${PW.length} of ${pl(wk.length,'day')}${PL.length?` and stayed inside my max loss on ${inside===PL.length?(inside===1?'it':'all of them'):`${inside} of ${PL.length}`}`:''}. `+
+        `My focus rules: ${PW.map(k=>esc(S.plans[k].short)).join('; ')}.</p>`:"<p>I didn't open a pre-market plan this week.</p>"))}
   // questions, most specific first
   const q=['Did every trade follow my plan? Which one didn\'t, and why?'];
-  if(pnl<0)q.push('Did I stop at my daily loss limit, or keep going?');
+  if(pnl<0&&!(P?.loss>0))q.push('Did I stop at my daily loss limit, or keep going?');
   if(gaveBig)q.push(`What made me keep trading after I was up ${usd(peak,1)}?`);
   if(fast.length)q.push(`What was I feeling after the loss before ${hm(fast[0].open)}, and why re-enter so quickly?`);
   if(over)q.push(`Which of today's ${n} trades would I skip if I could do the day again?`);
   if(best&&best.pnl>0)q.push(`What made the ${hm(best.open)} ${esc(best.contract)} trade work? Could I spot it again tomorrow?`);
+  if(wkOver)q.push('What is my one focus for next week?');
   q.push('One thing to repeat tomorrow. One thing to cut.');
   out+=sec('Questions to answer',`<ol>${q.map(x=>`<li>${x}</li>`).join('')}</ol>`);
   return out;
@@ -695,10 +742,120 @@ function reviewText(){
     ...[...x.children].slice(1).map(el=>el.matches('ol,ul')?[...el.children].map((li,i)=>`${el.matches('ol')?i+1+'.':'-'} ${li.textContent.replace(/\s+/g,' ').trim()}`).join('\n'):el.textContent.trim())].join('\n'))].join('\n\n');
 }
 
+/* ---------- pre-market plan: where my edge is, a max-loss line, one focus rule and a checklist, per trading day ----------
+   Built only from my own trades before that day (the last 60 trading days of them), so it stays the same all day; it
+   prepares the session and never makes up trades. Opening it saves the day's plan in S.plans[day] (synced): the focus
+   rule, the max loss and the ticks. The focus rule rotates through my current weak spots (the review's checks run over
+   past days, plus my worst hour, market and weekday): the one I focused on least recently comes next. Under 20 trades,
+   plain process rules take turns instead. */
+const PMIN=5,CHK=[['lv','Levels marked'],['nw','News checked'],['ml','Max loss set'],['fr','Focus rule read']];
+const PROC=[['p1','Every trade has its stop in before I enter.','stop in before entry'],['p2','Only the setups I wrote down before the open.','only my written setups'],
+  ['p3','After a loss, I wait 5 minutes before the next entry.','5 min pause after a loss'],['p4','Same size on every trade today.','same size every trade'],
+  ['p5',"At my max loss I'm done for the day.",'done at max loss']];
+const pls=(k,w)=>`${k} ${w}${k===1?'':'s'}`,median=a=>{const s=[...a].sort((x,y)=>x-y),i=s.length>>1;return s.length%2?s[i]:(s[i-1]+s[i])/2};
+// an hour block: 9–10 AM, 11 AM–12 PM
+const blk=h=>{const f=h=>new Date(2000,0,1,h).toLocaleTimeString('en-US',{hour:'numeric'}),a=f(h),b=f((h+1)%24);return (a.slice(-2)===b.slice(-2)?a.slice(0,-3):a)+'–'+b};
+// a plan is for the current trading day; at the weekend, for the Monday after
+function pmDay(){let d=tday(Date.now());while(pd(d).getDay()%6===0)d=addd(d,1);return d}
+function groups(T,f){const G={};T.forEach(t=>{const g=G[f(t)]??={n:0,pnl:0};g.n++;g.pnl+=t.pnl});return Object.entries(G).map(([k,g])=>({k,n:g.n,pnl:r2(g.pnl),exp:g.pnl/g.n}))}
+function premkt(day){
+  const A=S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)})).filter(t=>t.day<day).sort((a,b)=>a.close-b.close);
+  const dk=[...new Set(A.map(t=>t.day))].slice(-60),H=A.filter(t=>t.day>=dk[0]),n=H.length,thin=n<20,G={};
+  H.forEach(t=>(G[t.day]??=[]).push(t));
+  const an=dk.length?n/dk.length:null,F=dk.map(k=>dayLook(G[k],an)),exp=n?H.reduce((a,t)=>a+t.pnl,0)/n:0;
+  // where my edge is: hour blocks (by entry hour) and markets (by contract root) with at least PMIN trades each
+  const top=(a,s)=>a.filter(g=>g.n>=PMIN&&g.pnl*s>0).sort((x,y)=>(y.pnl-x.pnl)*s);
+  const HB=groups(H,ohr),IN=groups(H,t=>root(t.contract)),bh=top(HB,1)[0],wh=top(HB,-1)[0],bi=top(IN,1).slice(0,2),wi=IN.length>1&&top(IN,-1)[0];
+  // my weak spots, in this order while none has been a focus yet: [key, rule, short, why]
+  const C=[];
+  if(!thin){
+    const W=H.filter(t=>t.pnl>0),L=H.filter(t=>t.pnl<0),mins=t=>(t.close-t.open)/6e4,avg=a=>a.reduce((x,y)=>x+y,0)/a.length,m=v=>v<1?'under a minute':Math.round(v)+' min';
+    const hw=W.length>2?avg(W.map(mins)):null,hl=L.length>2?avg(L.map(mins)):null;
+    if(hw!=null&&hl>hw)C.push(['hold',`Out at my stop: no loser gets more time than my average winner (${m(hw)}).`,'cut losers on time',`My losers lasted ${m(hl)} on average, my winners ${m(hw)}.`]);
+    const fast=F.flatMap(f=>f.fast),fp=r2(fast.reduce((a,t)=>a+t.pnl,0));
+    if(fast.length>=3&&fp/fast.length<exp)C.push(['fast','After a loss, I wait 5 minutes before the next entry.','5 min pause after a loss',`${fast.length} of my trades came within 5 minutes of a loss; together they made ${usd(fp,1)}.`]);
+    const sk=F.filter(f=>f.lsMax>=3).length;
+    if(sk>=2)C.push(['streak','After two losses in a row, I step away for 15 minutes.','break after 2 losses in a row',`I had 3 or more losses in a row on ${sk} of my last ${pls(dk.length,'trading day')}.`]);
+    const gb=F.filter(f=>f.gaveBig);
+    if(gb.length>=2)C.push(['give',"Once I'm up on the day, I stop if I give back half of it.",'keep half of a green day',`On ${pls(gb.length,'day')} I gave back a big part of my high: ${usd(gb.reduce((a,f)=>a+f.gave,0))} in all.`]);
+    const busy=F.filter(f=>f.over),calm=F.filter(f=>!f.over),ab=busy.length?avg(busy.map(f=>f.pnl)):0,ac=calm.length?avg(calm.map(f=>f.pnl)):0;
+    if(busy.length>=2&&ab<ac){const cap=Math.ceil(an);C.push(['over',`No more than ${cap} trades today.`,`max ${cap} trades`,`On my ${busy.length} busiest days (${Math.ceil(an*1.5)}+ trades) I averaged ${usd(ab,1)}, against ${usd(ac,1)} on the others.`])}
+    const ml=L.length>=5?median(L.map(t=>-t.pnl)):0,big=ml?L.filter(t=>-t.pnl>2*ml):[];
+    if(big.length>=2)C.push(['big','My stop goes in before I enter, and it never moves further away.','stop in before entry',`${big.length} losses were more than twice my usual loss of ${usd(ml)} (worst ${usd(Math.min(...big.map(t=>t.pnl)))}).`]);
+    if(wh)C.push(['hour',`No new trades ${blk(+wh.k)}: my worst hour.`,`no trades ${blk(+wh.k)}`,`${blk(+wh.k)}: ${usd(wh.pnl,1)} over ${wh.n} trades (${usd(wh.exp,1)} a trade).`]);
+    if(wi)C.push(['inst',`No ${wi.k} today${bi[0]?`: I stick to ${bi[0].k}`:''}.`,`no ${wi.k} today`,`${wi.k}: ${usd(wi.pnl,1)} over ${wi.n} trades (${usd(wi.exp,1)} a trade).`]);
+    // my weakest weekday (by trading day) only counts on that weekday
+    const wd=pd(day).getDay(),ww=top(groups(H,t=>pd(t.day).getDay()),-1)[0],DN=pd(day).toLocaleDateString('en-US',{weekday:'long'});
+    if(ww&&+ww.k===wd)C.push(['wd',`${DN}s are my weakest day: A+ setups only, at smaller size.`,`${DN.slice(0,3)}: A+ setups only`,`${DN}s: ${usd(ww.pnl,1)} over ${ww.n} trades.`]);
+  }
+  const proc=!C.length;
+  // rotation: the one I focused on least recently first (never at all, first of all); the order above breaks ties
+  const last={};for(const d in S.plans){const f=S.plans[d]?.focus;if(d<day&&f&&!(last[f]>d))last[f]=d}
+  const R=(proc?PROC.map(p=>[...p,'']):C).map(([k,rule,short,why],i)=>({k,rule,short,why,at:last[k]||'',i})).sort((a,b)=>a.at<b.at?-1:a.at>b.at?1:a.i-b.i);
+  // max loss: from Settings, else my median red day, rounded
+  const red=F.map(f=>f.pnl).filter(v=>v<0),mr=red.length>=3?median(red.map(v=>-v)):0;
+  const nice=v=>v<100?Math.max(10,Math.round(v/10)*10):v<1000?Math.round(v/50)*50:Math.round(v/100)*100;
+  return {day,n,dk,thin,proc,bh,wh,bi,R,pick:R[0],loss:S.maxLoss||(mr?nice(mr):null),
+    why:S.maxLoss?'From my settings.':mr?`My median red day over my last ${pls(red.length,'red day')} was ${usd(-mr)}, rounded.`:'Not enough red days yet to suggest one, so I set my own.'};
+}
+function planForm(){
+  const P=premkt(pmDay()),day=P.day,f=P.pick;
+  if(!S.plans[day]){S.plans[day]={focus:f.k,rule:f.rule,short:f.short,why:f.why,loss:P.loss,ticks:{}};save()}
+  const p=S.plans[day],T=S.trades.filter(t=>tday(t.close)===day),np=r2(T.reduce((a,t)=>a+net(t),0));p.ticks??={};
+  const $$=v=>`<b class="${cls(v)}">${usd(v,1)}</b>`,sec=(h,b)=>`<section class="rv"><h4>${h}</h4>${b}</section>`,st=g=>`${$$(g.pnl)} over ${g.n} trades, ${usd(g.exp,1)} a trade`;
+  const edge=P.thin?`<p>${P.n?`Only ${pls(P.n,'trade')} so far: too few to say where my edge is.`:'No trades in my journal yet, so no stats.'} Plain process rules until I have 20.</p>`
+    :`<p class="dim">From my last ${pls(P.n,'trade')} over ${pls(P.dk.length,'trading day')} (${dlabel(P.dk[0])} – ${dlabel(P.dk.at(-1))}). An hour or a market needs ${PMIN} trades to count.</p><ul>`+
+      (P.bh?`<li>Best hour: <b>${blk(+P.bh.k)}</b> · ${st(P.bh)}</li>`:'<li>No hour is net positive over enough trades yet.</li>')+(P.wh?`<li>Worst hour: <b>${blk(+P.wh.k)}</b> · ${st(P.wh)}</li>`:'<li>No hour is net negative over enough trades.</li>')+
+      (P.bi.length?P.bi.map((g,i)=>`<li>${i?'Next best':'Best market'}: <b>${esc(g.k)}</b> · ${st(g)}</li>`).join(''):'<li>No market is net positive over enough trades yet.</li>')+'</ul>';
+  const note=P.thin?"Under 20 trades my numbers can't show weak spots yet, so process rules take turns.":P.proc?'No clear weak spot in my numbers, so process rules take turns.'
+    :P.R.length>1?`One of my ${P.R.length} weak spots right now. They take turns: the one I focused on least recently comes first.`:'My one clear weak spot right now.';
+  dlg.classList.add('rvd');dlg.addEventListener('close',()=>dlg.classList.remove('rvd'),{once:true});
+  dlg.innerHTML=`<div id="pmf"><div class="rvh"><h3 tabindex="-1" autofocus>${day===tday(Date.now())?"TODAY'S":pd(day).toLocaleDateString('en-US',{weekday:'long'}).toUpperCase()+"'S"} PLAN // ${dlabel(day).toUpperCase()}</h3></div>
+    ${sec('Where my edge is',edge)}
+    ${sec('My max loss',`<p class="pm-ml"><label for="pml">Stop for the day at</label><span>−$<input id="pml" type="number" min="0" step="any" inputmode="decimal" placeholder="set one" value="${p.loss>0?p.loss:''}"></span></p><p class="dim" id="pmh"></p>${T.length?'<p id="pmt"></p>':''}`)}
+    ${sec('My focus',`<p class="pm-f"><b id="pmr"></b></p><p class="dim" id="pmw"></p><p class="dim pm-r"><span>${note}</span>${P.R.length>1?'<button type="button" data-pm="swap">OTHER RULE</button>':''}</p>`)}
+    ${sec('Before the open',`<div class="pm-ck">${CHK.map(([k,l])=>`<label><input type="checkbox" data-pm="${k}"${p.ticks[k]?' checked':''}>${l}</label>`).join('')}</div>`)}
+    <div class="fa2"><span class="dim" id="pms" role="status"></span><button type="button" class="pri" data-a="x">DONE</button></div></div>`;
+  const paint=()=>{
+    $('#pmh').textContent=!(p.loss>0)?(P.loss?`No line for this day. My default is ${usd0(P.loss)}.`:P.why):p.loss===P.loss?P.why:`Set for this day.${P.loss?` My default is ${usd0(P.loss)}.`:''}`;
+    if(T.length)$('#pmt').innerHTML=`So far: ${$$(np)} over ${pls(T.length,'trade')}.`+(p.loss>0&&np<=-p.loss?` <b class="neg">I've reached my max-loss line: done for the day.</b>`:'');
+    $('#pmr').textContent=p.rule;$('#pmw').textContent=p.why||'';$('#pmw').hidden=!p.why;
+    const k=CHK.filter(([k])=>p.ticks[k]).length;$('#pms').textContent=k===CHK.length?'Ready ✓':`${k} of ${CHK.length} ticked`;
+  };
+  const el=$('#pmf');let dirty=false;
+  el.addEventListener('input',e=>{if(e.target.id==='pml'){const v=+e.target.value;p.loss=v>0?r2(v):null;dirty=true;paint()}});
+  el.addEventListener('change',e=>{const k=e.target.dataset.pm;if(k){p.ticks[k]=e.target.checked;save();paint()}else if(dirty){dirty=false;save()}});
+  dlg.addEventListener('close',()=>{if(dirty){dirty=false;save()}},{once:true});
+  // another of my weak spots for today: the next one in the rotation
+  el.addEventListener('click',e=>{if(!e.target.closest('[data-pm=swap]'))return;const i=P.R.findIndex(r=>r.k===p.focus),r=P.R[(i+1)%P.R.length];
+    Object.assign(p,{focus:r.k,rule:r.rule,short:r.short,why:r.why});save();paint()});
+  paint();
+  if(!dlg.open)dlg.showModal();
+  el.querySelector('h3').focus();dlg.scrollTop=0;
+}
+// TODAY's plan card: the pre-market plan on a trading weekday, the weekly review at the weekend. From the roll hour on,
+// the trading day is tomorrow's, so a second row carries that one until midnight (when the record is rebuilt anyway)
+function planRows(){
+  if(!S.trades.length&&!Object.keys(S.plans).length)return [];
+  const row=ms=>{const day=tday(ms),wd=pd(day).getDay();
+    if(wd%6===0){if(!S.trades.length)return null;
+      const ws=addd(day,-((wd+6)%7)),D={};S.trades.forEach(t=>{const k=tday(t.close);if(k>=ws&&k<=day)D[k]=(D[k]||0)+net(t)});
+      const k=Object.keys(D),v=r2(k.reduce((a,d)=>a+D[d],0));
+      return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last day',act:'review'}}
+    const P=premkt(day),p=S.plans[day],f=p||P.pick,loss=p?p.loss:P.loss;
+    return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>p.ticks?.[k])};
+  };
+  const now=new Date();
+  if(!S.roll||now.getHours()>=S.roll)return [row(+now)];
+  const a=row(+now),b=row(new Date(now.getFullYear(),now.getMonth(),now.getDate(),S.roll).getTime());
+  return !a||!b||JSON.stringify(a)===JSON.stringify(b)?[a||b]:[{...a,h0:0,h1:S.roll},b];
+}
+
 function settingsForm(){
   dlg.innerHTML=`<h3>SETTINGS</h3>
   <div class="ui-set">
     <div><span><b>Trading day</b><small>When a new trading day starts (local time)</small></span><select data-f="roll" aria-label="Trading day rollover">${[0,16,17,18].map(h=>`<option value="${h}"${h===S.roll?' selected':''}>${h?pad(h)+':00':'midnight'}</option>`).join('')}</select></div>
+    <div><span><b>Daily max loss</b><small>Your stop for the day in the pre-market plan. Leave blank to use your median red day</small></span><input data-f="maxl" type="number" min="0" step="any" inputmode="decimal" placeholder="Auto" aria-label="Daily max loss in dollars" value="${S.maxLoss||''}"></div>
     <div><span><b>Sync</b><small>${window.ISXSync?.state==='ok'?'On · this app syncs across your devices':'Keep every app the same on all your devices'}</small></span><span class="ui-set-btns"><button type="button" data-a="sync">SYNC…</button></span></div>
     <div><span><b>Backup</b><small>Saved on this device. Download a copy, or restore one.</small></span><span class="ui-set-btns"><button type="button" data-a="bak">BACKUP JSON</button><button type="button" data-a="imp">RESTORE</button></span></div>
     <div><span><b>Delete everything</b><small>Removes all of this app's data on this device.</small></span><span class="ui-set-btns"><button type="button" class="ui-danger" data-a="clear">CLEAR ALL</button></span></div>
@@ -708,12 +865,12 @@ function settingsForm(){
 }
 const ACT={
   set:()=>settingsForm(),sync:()=>{dlg.close();document.getElementById('isx-sync')?.click()},
-  add:()=>tradeForm(),imp:()=>$('#file').click(),x:()=>dlg.close(),sample,csv:exportCSV,
+  add:()=>tradeForm(),plan:()=>planForm(),imp:()=>$('#file').click(),x:()=>dlg.close(),sample,csv:exportCSV,
   note:()=>noteForm(U.range in RANGES?tday(Date.now()):U.range),
   review:()=>reviewForm(rvDefault()),rvgo:v=>v&&reviewForm(v),rvnote:v=>{dlg.classList.remove('rvd');noteForm(v)},
   rvcopy:()=>{const t=reviewText();(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Review copied'),()=>toast('Copy failed — select the text instead'))},
   bak:()=>dl(`journal-backup-${ymd(new Date())}.json`,JSON.stringify(S),'application/json'),
-  clear:()=>{if(confirm('Delete ALL trades and notes on this device?')){S={trades:[],notes:{},roll:S.roll};save();U.range='all';boot()}},
+  clear:()=>{if(confirm('Delete ALL trades, notes and plans on this device?')){S=state({roll:S.roll,maxLoss:S.maxLoss});save();U.range='all';boot()}},
   prev:()=>shift(-1),next:()=>shift(1),tod:()=>{setMonth(Date.now());render()},
   day:v=>{U.range=U.range===v?'all':v;U.page=0;render()},
   rng:v=>{U.range=U.range===v?'all':v;U.page=0;render()},   // the Today card's period tiles; tap again for all time
@@ -732,7 +889,10 @@ document.addEventListener('keydown',e=>{const b=e.target.closest('[role=button][
   const sel=`[data-a="${b.dataset.a}"][data-v="${CSS.escape(b.dataset.v||'')}"]`,i=[...document.querySelectorAll(sel)].indexOf(b);b.click();document.querySelectorAll(sel)[i]?.focus()});
 document.addEventListener('change',e=>{
   const k=e.target.dataset.f;if(!k)return;
-  if(k==='roll'){S.roll=+e.target.value;save()}else U[k]=e.target.value;
+  if(k==='roll'){S.roll=+e.target.value;save()}
+  // a new max loss in Settings also moves today's plan, unless I set that day's line myself
+  else if(k==='maxl'){const v=+e.target.value,d=pmDay(),p=S.plans[d],old=premkt(d).loss;S.maxLoss=v>0?r2(v):null;if(p&&p.loss===old)p.loss=premkt(d).loss;save()}
+  else U[k]=e.target.value;
   U.page=0;render();
 });
 $('#file').addEventListener('change',async e=>{
@@ -742,12 +902,13 @@ $('#file').addEventListener('change',async e=>{
   try{
     const s=JSON.parse(txt);if(!Array.isArray(s.trades))throw 0;
     if(!confirm(`Replace everything here with this backup (${s.trades.length} trades)?`))return;
-    S={trades:s.trades,notes:s.notes||{},roll:s.roll??18};save();boot();toast('Backup restored');
+    S=state(s);save();boot();toast('Backup restored');
   }catch(x){toast('Not a valid backup file')}
 });
 
 function boot(){setMonth(S.trades.length?Math.max(...S.trades.map(t=>t.close)):Date.now());render()}
 boot();
+UI.planner('journal',[KEY],planRows);
 // another ISIONXXX app can send you straight to an action here (REWIRE's LOG buttons): #do=<action> or a message
 // 'today' (from TODAY's rings and timeline): drop any card filters and show just today, as a chip you can clear
 function doAct(a){if(!/^\w+$/.test(a||''))return;if(a==='today'){U.x={};U.range=tday(Date.now());setMonth(Date.now());U.page=0;render();return}const b=document.querySelector(`[data-a="${a}"],[data-act="${a}"]`);if(b)b.click()}
