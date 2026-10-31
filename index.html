@@ -149,7 +149,7 @@ dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .pm-ck label{flex-direction:row;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--g-line2);border-radius:var(--g-r3);background:rgba(255,255,255,.035);font-size:13px;letter-spacing:0;text-transform:none;color:var(--tx);cursor:pointer}
 .pm-ck label:has(:checked){border-color:rgba(255,176,0,.45);background:rgba(255,176,0,.07)}.pm-ck label:has(:focus-visible){border-color:var(--amber)}.pm-ck label:has(:disabled){opacity:.5;cursor:default}
 .pm-ck input{width:16px;height:16px;margin:0;padding:0;flex:none;accent-color:var(--amber);box-shadow:none}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);max-width:90vw;background:var(--panel);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+#toast{position:fixed;inset:auto auto 24px 50%;margin:0;overflow:visible;transform:translateX(-50%);max-width:90vw;background:var(--panel);border:1px solid var(--amber);color:var(--amber);padding:8px 14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
 #toast.on{opacity:1}
 
 @media(max-width:1000px){.g4{grid-template-columns:1fr 1fr}.g21,.g3{grid-template-columns:1fr}}
@@ -177,7 +177,7 @@ h1.brand{margin:0}
   </div>
 </header>
 <div id="top"></div>
-<div class="bar">
+<div class="bar" role="region" aria-label="Filters">
   <select data-f="acct" aria-label="Account"></select>
   <select data-f="stat" aria-label="Outcome">
     <option value="all">All outcomes</option><option value="win">Wins</option><option value="be">Breakeven</option><option value="loss">Losses</option>
@@ -185,10 +185,10 @@ h1.brand{margin:0}
   <select data-f="range" aria-label="Range"></select>
   <span id="scope" class="dim"></span>
 </div>
-<div id="xf" class="xf" hidden></div>
+<div id="xf" class="xf" role="region" aria-label="Active filters" hidden></div>
 <main id="app"></main>
 <dialog id="dlg"></dialog>
-<div id="toast" role="status"></div>
+<div id="toast" role="status" popover="manual"></div>
 
 <script src="sync.js" data-keys="isx.journal.v1"></script>
 <script src="ui.js"></script>
@@ -203,7 +203,7 @@ const ALIAS={
   open:['opened','open','entry time','entrytime','enteredat','opened at','bought timestamp'],
   account:['account','account name','accountname'],
   contract:['contract','symbol','instrument','contractname'],
-  side:['side','type','direction'],
+  side:['side','type','direction','market pos.','market pos'],   // NinjaTrader: Market pos. (without it every short read as long)
   qty:['qty','quantity','size','contracts'],
   entry:['entry','entry price','entryprice','buy price','avg entry'],
   exit:['exit','exit price','exitprice','sell price','avg exit'],
@@ -236,6 +236,11 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const net=t=>r2((t.exit-t.entry)*(t.side==='Short'?-1:1)*t.qty*t.mult-t.fee-t.comm);
 
 /* ---------- state ---------- */
+// a hand-edited file or another version's data can hold anything: what the app can't draw is left out, so it always starts
+const isO=v=>!!v&&typeof v==='object'&&!Array.isArray(v),okT=t=>isO(t)&&[t.close,t.entry,t.exit].every(Number.isFinite);
+// numbers saved as text (an older copy, a hand edit) are read as numbers first, so a real trade is never left out for that
+const numT=t=>isO(t)?{...t,...Object.fromEntries(['open','close','entry','exit','qty','mult','fee','comm'].filter(k=>typeof t[k]==='string'&&t[k].trim()!==''&&isFinite(t[k])).map(k=>[k,+t[k]]))}:t;
+const keep=(o,f)=>isO(o)?Object.fromEntries(Object.entries(o).filter(([,v])=>f(v))):{};
 let S=load();
 const U={acct:'all',stat:'all',range:'all',page:0,month:null,x:{}};   // x: cross-filters set by clicking a card (dres, hour, wd, inst, side)
 function load(){
@@ -243,12 +248,16 @@ function load(){
   return state({});
 }
 // plans: the pre-market plan of each trading day; maxLoss: the daily stop from Settings (null: from my red days)
-function state(s){return {trades:s.trades||[],notes:s.notes||{},roll:s.roll??18,plans:s.plans||{},maxLoss:s.maxLoss>0?s.maxLoss:null}}
+function state(s){return {trades:(Array.isArray(s.trades)?s.trades:[]).map(numT).filter(okT),notes:keep(s.notes,v=>typeof v==='string'),roll:s.roll??18,plans:keep(s.plans,isO),maxLoss:s.maxLoss>0?s.maxLoss:null}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));UI.replan()}catch(e){toast('Storage write failed — take a backup')}}
 // trading day: anything at/after the roll hour belongs to the next date (Sunday 6 PM open -> Monday)
 function tday(ms){const d=new Date(ms);if(S.roll&&d.getHours()>=S.roll)d.setDate(d.getDate()+1);return ymd(d)}
 function setMonth(ms){const d=pd(tday(ms));U.month={y:d.getFullYear(),m:d.getMonth()}}
-let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
+// a popover sits in the top layer: shown again, it lands above an open dialog instead of behind its backdrop (and
+// inside that dialog, so the modal doesn't make it inert and VoiceOver still reads it). Kept by reference: a dialog's
+// next form replaces its contents
+const TOAST=$('#toast');let tt;
+function toast(m){const t=TOAST;if(t.showPopover){if(t.matches(':popover-open'))t.hidePopover();(dlg.open?dlg:document.body).append(t);t.showPopover()}t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),3200)}
 
 // skip leaves one filter out: a card that sets a filter shows everything else, with its own choice highlighted
 const res=v=>v>0?'win':v<0?'loss':'be',ohr=t=>new Date(t.open||t.close).getHours(),owd=t=>new Date(t.open||t.close).getDay();
@@ -412,7 +421,7 @@ function render(){
   const pct=(a,b)=>b?Math.round(a/b*100)+'%':'0%';
   const pfx=v=>v==null?'—':v===Infinity?'&infin;':v.toFixed(2),pfT=pfx(s.pf),pfW=pfx(sw.pf),gs=sw.gp+sw.gl,mx=Math.max(sw.aw,sw.al)||1;
   $('[data-f=stat]').value=U.stat;xfBar();
-  $('[data-f=acct]').innerHTML='<option value="all">All accounts</option>'+accts.map(a=>`<option${a===U.acct?' selected':''}>${esc(a)}</option>`).join('');
+  $('[data-f=acct]').innerHTML='<option value="all">All accounts</option>'+accts.map(a=>`<option value="${esc(a)}"${a===U.acct?' selected':''}>${esc(a)}</option>`).join('');
   $('[data-f=range]').innerHTML=Object.entries(RANGES).map(([k,v])=>`<option value="${k}"${k===U.range?' selected':''}>${v}</option>`).join('')+(U.range in RANGES?'':`<option value="${U.range}" selected>${dlabel(U.range)}</option>`);
   $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(s.dk.length?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk.at(-1))}`:'');
 
@@ -517,7 +526,9 @@ function tradeForm(t){
   f.addEventListener('input',sync);sync();
   f.addEventListener('submit',ev=>{
     ev.preventDefault();const v=read();
-    if(!(v.close>=v.open)){$('#pv').innerHTML='<span class="neg">Closed must be after opened</span>';return}
+    // a blank (spaces only) account or contract, or $0 a point, would save a trade with no market or no P&L
+    const bad=!v.account?'Account is blank':!v.contract?'Contract is blank':!(v.mult>0)?'$ per point must be above 0':!(v.close>=v.open)?'Closed must be after opened':'';
+    if(bad){$('#pv').innerHTML=`<span class="neg">${bad}</span>`;return}
     if(t)Object.assign(S.trades.find(x=>x.id===t.id),v);else S.trades.push({id:uid(),...v});
     save();dlg.close();setMonth(v.close);render();
   });
@@ -542,11 +553,12 @@ function parseCSV(txt){
   end();return rows;
 }
 const num=s=>parseFloat(String(s).replace(/[$,+\s]/g,''));
-// ISO, "2026-10-08 00:01:06", or US "10/08/2026 00:01:06" (Tradovate), all read as local time
+// ISO, "2026-10-08 00:01:06", or US "10/08/2026 00:01:06" (Tradovate), all read as local time (a bare "2026-10-08"
+// too: Date.parse reads that one as UTC, the evening before in the US)
 const ts=s=>{
   const m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d\d)(?::(\d\d))?\s*(AM|PM)?$/i.exec(s.trim());
   if(m){let h=+m[4];if(m[7])h=h%12+(/pm/i.test(m[7])?12:0);return new Date(+m[3],m[1]-1,+m[2],h,+m[5],+(m[6]||0)).getTime()}
-  return Date.parse(/^\d{4}-\d\d-\d\d \d/.test(s)?s.replace(' ','T'):s);
+  return Date.parse(/^\d{4}-\d\d-\d\d$/.test(s)?s+'T00:00':/^\d{4}-\d\d-\d\d \d/.test(s)?s.replace(' ','T'):s);
 };
 const secs=s=>{if(!s)return 0;if(/^[\d.]+$/.test(s))return +s;let x=0;s.replace(/([\d.]+)\s*([hms])/gi,(_,v,u)=>{x+=v*{h:3600,m:60,s:1}[u.toLowerCase()]});return x};
 function importCSV(txt){
@@ -563,7 +575,10 @@ function importCSV(txt){
   if(c.account<0){const lt=S.trades.reduce((a,t)=>!a||t.close>a.close?t:a,null);
     const v=prompt('This file has no account column. Account for these trades:',lt?lt.account:'DEFAULT');
     if(v===null)return;acct=v.trim()||'DEFAULT'}
-  const key=t=>[t.close,t.account,t.contract,t.side,t.qty,t.entry,t.exit].join('|'),seen=new Set(S.trades.map(key)),unk=new Set();
+  // a row is a duplicate of a trade already here (times to the second: my CSV export drops the milliseconds). Each one
+  // here cancels one row, so a fill split in two at the same price and second still comes in as two trades
+  const key=t=>[Math.floor(t.close/1000),t.account,t.contract,t.side,t.qty,t.entry,t.exit].join('|'),had={},unk=new Set();
+  S.trades.forEach(t=>{const k=key(t);had[k]=(had[k]||0)+1});
   let add=0,skip=0,last=0;
   rows.slice(1).forEach(r=>{
     const g=k=>c[k]<0?'':(r[c[k]]||'').trim();
@@ -577,8 +592,8 @@ function importCSV(txt){
     if(!(m>0)&&!sp)unk.add(root(contract));
     const t={id:uid(),account:g('account')||acct,contract,side,qty:Math.abs(num(g('qty')))||1,entry,exit,
       open:isFinite(op)?op:close-secs(g('dur'))*1000,close,mult:m>0?m:sp||1,fee:Math.abs(num(g('fee')))||0,comm:Math.abs(num(g('comm')))||0,note:g('note')};
-    if(seen.has(key(t))){skip++;return}
-    seen.add(key(t));S.trades.push(t);add++;last=Math.max(last,close);
+    if(had[key(t)]>0){had[key(t)]--;skip++;return}
+    S.trades.push(t);add++;last=Math.max(last,close);
   });
   if(add){save();setMonth(last);render()}
   toast(`Imported ${add} · skipped ${skip}`+(unk.size?` · set $/point for ${[...unk].join(', ')}`:''));
@@ -909,7 +924,7 @@ $('#file').addEventListener('change',async e=>{
   const txt=await f.text();
   if(!/\.json$/i.test(f.name))return importCSV(txt);
   try{
-    const s=JSON.parse(txt);if(!Array.isArray(s.trades))throw 0;
+    const s=JSON.parse(txt);if(!Array.isArray(s.trades)||!s.trades.map(numT).every(okT))throw 0;   // not a JOURNAL backup: keep what's here
     if(!confirm(`Replace everything here with this backup (${s.trades.length} trades)?`))return;
     S=state(s);save();boot();toast('Backup restored');
   }catch(x){toast('Not a valid backup file')}
@@ -944,7 +959,13 @@ function heroToday(){
     action:{label:'+ Trade',attrs:{'data-a':'add'}},
     log:T.map(x=>({at:x.close,tag:`${x.side} ${x.contract}`,text:`×${x.qty} · ${usd(net(x),1)}`,tone:net(x)>0?'pos':net(x)<0?'neg':''}))});
 }
-{const r0=render;render=function(...a){r0.apply(this,a);UI.animate($('#app'));UI.animate($('#top'))};UI.animate($('#top'));UI.animate($('#app'))}
+// a redraw replaces the button that had focus (calendar arrows, paging, EDIT once its dialog closes): focus goes to its
+// replacement, so the keyboard and VoiceOver keep their place
+let shown=tday(Date.now());   // the trading day on screen
+{const r0=render;render=function(...a){const f=document.activeElement,sel=f&&f.dataset?.a&&f.closest('#app,#top')?`[data-a="${f.dataset.a}"]`+(f.dataset.v!=null?`[data-v="${CSS.escape(f.dataset.v)}"]`:''):'',i=sel?[...document.querySelectorAll(sel)].indexOf(f):-1;
+  shown=tday(Date.now());r0.apply(this,a);UI.animate($('#app'));UI.animate($('#top'));if(sel&&!f.isConnected)document.querySelectorAll(sel)[i]?.focus({preventScroll:true})};UI.animate($('#top'));UI.animate($('#app'))}
+// a home-screen app can sit open overnight or past the roll hour: back on screen on a new trading day, redraw "today"
+const fresh=()=>{if(!document.hidden&&tday(Date.now())!==shown)render()};document.addEventListener('visibilitychange',fresh);setInterval(fresh,6e4);
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
