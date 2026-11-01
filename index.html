@@ -561,7 +561,7 @@ const ts=s=>{
   return Date.parse(/^\d{4}-\d\d-\d\d$/.test(s)?s+'T00:00':/^\d{4}-\d\d-\d\d \d/.test(s)?s.replace(' ','T'):s);
 };
 const secs=s=>{if(!s)return 0;if(/^[\d.]+$/.test(s))return +s;let x=0;s.replace(/([\d.]+)\s*([hms])/gi,(_,v,u)=>{x+=v*{h:3600,m:60,s:1}[u.toLowerCase()]});return x};
-function importCSV(txt){
+async function importCSV(txt){
   const rows=parseCSV(txt.replace(/^\uFEFF/,''));if(rows.length<2)return toast('No rows found');
   const H=rows[0].map(h=>h.trim().toLowerCase()),c={};
   for(const k in ALIAS)c[k]=H.findIndex(h=>ALIAS[k].includes(h));
@@ -573,8 +573,8 @@ function importCSV(txt){
   // no account column: file the trades under the account you used last, if there is one
   let acct='DEFAULT';
   if(c.account<0){const lt=S.trades.reduce((a,t)=>!a||t.close>a.close?t:a,null);
-    const v=prompt('This file has no account column. Account for these trades:',lt?lt.account:'DEFAULT');
-    if(v===null)return;acct=v.trim()||'DEFAULT'}
+    const v=await UI.ask({title:'Which account?',body:'This file has no account column. File these trades under:',value:lt?lt.account:'DEFAULT',ok:'Import'});
+    if(v===null)return;acct=v||'DEFAULT'}
   // a row is a duplicate of a trade already here (times to the second: my CSV export drops the milliseconds). Each one
   // here cancels one row, so a fill split in two at the same price and second still comes in as two trades
   const key=t=>[Math.floor(t.close/1000),t.account,t.contract,t.side,t.qty,t.entry,t.exit].join('|'),had={},unk=new Set();
@@ -894,7 +894,8 @@ const ACT={
   review:()=>reviewForm(rvDefault()),rvgo:v=>v&&reviewForm(v),rvnote:v=>{dlg.classList.remove('rvd');noteForm(v)},
   rvcopy:()=>{const t=reviewText();(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Review copied'),()=>toast('Copy failed — select the text instead'))},
   bak:()=>dl(`journal-backup-${ymd(new Date())}.json`,JSON.stringify(S),'application/json'),
-  clear:()=>{if(confirm('Delete ALL trades, notes and plans on this device?')){S=state({roll:S.roll,maxLoss:S.maxLoss});save();U.range='all';boot()}},
+  clear:()=>UI.confirm({title:'Delete everything?',body:'All trades, notes and plans on this device are deleted. Back up first if you might want them.',ok:'Delete all',danger:true})
+    .then(ok=>{if(ok){S=state({roll:S.roll,maxLoss:S.maxLoss});save();U.range='all';boot()}}),
   prev:()=>shift(-1),next:()=>shift(1),tod:()=>{setMonth(Date.now());render()},
   day:v=>{U.range=U.range===v?'all':v;U.page=0;render()},
   rng:v=>{U.range=U.range===v?'all':v;U.page=0;render()},   // the Today card's period tiles; tap again for all time
@@ -903,7 +904,9 @@ const ACT={
   xclr:k=>{if(k==='stat')U.stat='all';else if(k==='range')U.range='all';else delete U.x[k];U.page=0;render()},
   xall:()=>{U.stat='all';U.x={};if(/^\d{4}-/.test(U.range))U.range='all';U.page=0;render()},
   edit:v=>tradeForm(S.trades.find(t=>t.id===v)),
-  del:v=>{if(confirm('Delete this trade?')){S.trades=S.trades.filter(t=>t.id!==v);save();render()}},
+  // a delete happens at once and can be taken back from the toast (the trade goes back where it was)
+  del:v=>{const i=S.trades.findIndex(t=>t.id===v);if(i<0)return;const[t]=S.trades.splice(i,1);save();render();
+    UI.undo(`${t.contract} trade deleted`,()=>{S.trades.splice(Math.min(i,S.trades.length),0,t);save();render()})},
   pp:()=>{U.page--;render()},pn:()=>{U.page++;render()}
 };
 function shift(k){const d=new Date(U.month.y,U.month.m+k,1);U.month={y:d.getFullYear(),m:d.getMonth()};render()}
@@ -925,7 +928,7 @@ $('#file').addEventListener('change',async e=>{
   if(!/\.json$/i.test(f.name))return importCSV(txt);
   try{
     const s=JSON.parse(txt);if(!Array.isArray(s.trades)||!s.trades.map(numT).every(okT))throw 0;   // not a JOURNAL backup: keep what's here
-    if(!confirm(`Replace everything here with this backup (${s.trades.length} trades)?`))return;
+    if(!await UI.confirm({title:'Restore this backup?',body:`Everything here is replaced with the backup's ${s.trades.length} trades.`,ok:'Replace',danger:true}))return;
     S=state(s);save();boot();toast('Backup restored');
   }catch(x){toast('Not a valid backup file')}
 });
