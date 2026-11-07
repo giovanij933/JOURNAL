@@ -198,7 +198,7 @@ h1.brand{margin:0}
 const KEY='isx.journal.v1', PAGE=20;
 // dollars per 1.00 point, per contract
 const SPEC={NQ:20,MNQ:2,ES:50,MES:5,YM:5,MYM:.5,RTY:50,M2K:5,GC:100,MGC:10,SI:5000,SIL:1000,HG:25000,CL:1000,MCL:100,NG:10000};
-const RANGES={today:'Today',week:'This week',month:'This month',all:'All time'};
+const RANGES={today:'Today',week:'This week',month:'This month',year:'This year',all:'All time'};
 const ALIAS={
   close:['closed','close','time','time (local)','exit time','exittime','exitedat','closed at','date','sold timestamp'],
   open:['opened','open','entry time','entrytime','enteredat','opened at','bought timestamp'],
@@ -264,7 +264,7 @@ function toast(m){const t=TOAST;if(t.showPopover){if(t.matches(':popover-open'))
 const res=v=>v>0?'win':v<0?'loss':'be',ohr=t=>new Date(t.open||t.close).getHours(),owd=t=>new Date(t.open||t.close).getDay();
 function view(useRange=true,skip=''){
   const today=tday(Date.now()),wk=s=>{const d=pd(s);d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)}   /* trading week: Monday first */;
-  const inR=d=>U.range==='all'||(U.range==='today'?d===today:U.range==='week'?wk(d)===wk(today):U.range==='month'?d.slice(0,7)===today.slice(0,7):d===U.range);
+  const inR=d=>U.range==='all'||(U.range==='today'?d===today:U.range==='week'?wk(d)===wk(today):U.range==='month'?d.slice(0,7)===today.slice(0,7):U.range==='year'?d.slice(0,4)===today.slice(0,4):d===U.range);
   const x=U.x,on=k=>k!==skip&&x[k]!=null;
   let T=S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)}))
     .filter(t=>(U.acct==='all'||t.account===U.acct)&&(skip==='stat'||U.stat==='all'||res(t.pnl)===U.stat)&&(!useRange||inR(t.day))
