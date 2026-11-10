@@ -227,6 +227,7 @@ const FMT={dmy:new Intl.DateTimeFormat('en-US',{month:'short',day:'numeric',year
 const dlabel=s=>FMT.dmy.format(pd(s));
 const tfmt=ms=>FMT.dt.format(ms);
 const usd=(v,plus)=>(v<0?'-':plus&&v>0?'+':'')+'$'+FMT.n2.format(Math.abs(v));
+const HRS=[];   // the 24 hour labels ("9 AM"), each made once
 const usd0=v=>(v<0?'-':'')+'$'+Math.abs(Math.round(v)).toLocaleString('en-US');
 const px=v=>{const s=String(v);return s.includes('.')&&s.split('.')[1].length>2?s:v.toFixed(2)};
 const cls=v=>v>0?'pos':v<0?'neg':'dim';
@@ -264,7 +265,9 @@ function toast(m){const t=TOAST;if(t.showPopover){if(t.matches(':popover-open'))
 const res=v=>v>0?'win':v<0?'loss':'be',ohr=t=>new Date(t.open||t.close).getHours(),owd=t=>new Date(t.open||t.close).getDay();
 function view(useRange=true,skip=''){
   const today=tday(Date.now()),wk=s=>{const d=pd(s);d.setDate(d.getDate()-(d.getDay()+6)%7);return ymd(d)}   /* trading week: Monday first */;
-  const inR=d=>U.range==='all'||(U.range==='today'?d===today:U.range==='week'?wk(d)===wk(today):U.range==='month'?d.slice(0,7)===today.slice(0,7):U.range==='year'?d.slice(0,4)===today.slice(0,4):d===U.range);
+  // this week's first and last day, worked out once (asking for each trade's week, and today's again, for every trade was slow)
+  const w0=wk(today),w1=(()=>{const d=pd(w0);d.setDate(d.getDate()+6);return ymd(d)})();
+  const inR=d=>U.range==='all'||(U.range==='today'?d===today:U.range==='week'?d>=w0&&d<=w1:U.range==='month'?d.slice(0,7)===today.slice(0,7):U.range==='year'?d.slice(0,4)===today.slice(0,4):d===U.range);
   const x=U.x,on=k=>k!==skip&&x[k]!=null;
   let T=S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)}))
     .filter(t=>(U.acct==='all'||t.account===U.acct)&&(skip==='stat'||U.stat==='all'||res(t.pnl)===U.stat)&&(!useRange||inR(t.day))
@@ -426,8 +429,8 @@ function render(){
   $('[data-f=range]').innerHTML=Object.entries(RANGES).map(([k,v])=>`<option value="${k}"${k===U.range?' selected':''}>${v}</option>`).join('')+(U.range in RANGES?'':`<option value="${U.range}" selected>${dlabel(U.range)}</option>`);
   $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(s.dk.length?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk.at(-1))}`:'');
 
-  $('#top').innerHTML=heroToday();
-  $('#app').innerHTML=`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: a year of trades from a profitable futures trader.</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
+  UI.paint($('#top'),heroToday(),{now:true});
+  UI.paint($('#app'),`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: a year of trades from a profitable futures trader.</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
 <section class="g g4">
  <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${nw}</div>
   ${gauge([[nw?sw.w/nw:0,'sg','stat:win',`Wins: ${sw.w}`],[nw?sw.be/nw:0,'sd','stat:be',`Breakeven: ${sw.be}`],[nw?sw.l/nw:0,'sr','stat:loss',`Losses: ${sw.l}`]],nw?Math.round(sw.wr)+'%':'—')}
@@ -467,7 +470,7 @@ function render(){
  <div class="card"><p class="h">Drawdown</p><div class="k">Max drawdown</div><div class="big ${cls(-s.mdd)}">${usd(-s.mdd)}</div>${line(s.under,'cr',tradeAt(T,s.under,'Drawdown'))}</div>
 </section>
 ${(()=>{const B=brk(view(true,'hour')),BW=brk(view(true,'wd')),BI=brk(view(true,'inst')),BS=brk(view(true,'side')),best=a=>{const i=a.indexOf(Math.max(...a));return Math.max(...a)>0?i:null},worst=a=>{const i=a.indexOf(Math.min(...a));return Math.min(...a)<0?i:null};
-  const hr=h=>h==null?'—':new Date(2000,0,1,h).toLocaleTimeString('en-US',{hour:'numeric'}),DW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const hr=h=>h==null?'—':HRS[h]??=new Date(2000,0,1,h).toLocaleTimeString('en-US',{hour:'numeric'}),DW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const pf=g=>g.gl?(g.gp/g.gl).toFixed(2):g.gp?'&infin;':'—',bh=best(B.hours),wh=worst(B.hours),bd=best(BW.wd),wdd=worst(BW.wd);
   const pt=(k,lab,v)=>i=>({a:`data-a="xf" data-v="${k}:${i}"`,title:`${lab(i)}: ${usd(v[i],1)} — click to show only this`,off:U.x[k]!=null&&U.x[k]!==i});
   return `<section class="g g3">
@@ -482,7 +485,7 @@ ${(()=>{const B=brk(view(true,'hour')),BW=brk(view(true,'wd')),BI=brk(view(true,
   <div class="sec">Long vs short</div>
   ${['Long','Short'].map(k=>{const g=BS.side[k];return g?`<div class="ev pick${U.x.side===k?' on':''}" role="button" tabindex="0" aria-pressed="${U.x.side===k}" data-a="xf" data-v="side:${k}"><span>${k} <span class="dim">· ${g.n}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% win</span></b></div>`:`<div class="ev"><span>${k}</span><b class="dim">—</b></div>`}).join('')}</div>
 </section>`})()}
-${table(T)}`;
+${table(T)}`);
 }
 
 /* ---------- dialogs ---------- */
