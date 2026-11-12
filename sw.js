@@ -1,5 +1,5 @@
 // Bump the version string whenever you change index.html so clients pick up the new shell.
-const CACHE = 'isx-journal-v75';
+const CACHE = 'isx-journal-v76';
 // all ISIONXXX apps share one site and one cache storage: only ever clear this app's own old caches
 const MINE = k => k.startsWith('isx-journal-');
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg', './db.js', './sync.js', './ui.js', './ui.css', './apple-touch-icon.png', './icon-192.png', './icon-512.png'];
@@ -22,7 +22,7 @@ self.addEventListener('activate', e => {
 });
 
 // Stale-while-revalidate: serve from cache instantly, refresh in the background.
-// Also caches the IBM Plex Mono font files on first load so the app works offline.
+// Also caches what the page fetches from other sites (the charting and code runtimes), so the app works offline.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (/api\.github\.com|githubusercontent\.com/.test(e.request.url)) return;   // sync talks to GitHub live, never from cache
