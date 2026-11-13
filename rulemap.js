@@ -66,5 +66,17 @@ window.RLG=(()=>{
   const mini=(k,rule,why)=>has(k)?`<span class="rl-mini" aria-hidden="true">${pic(k,nums(k,rule,why))}</span>`:'';
   // the guide: the picture, the rule, why (your numbers) and how to keep it
   const html=(k,rule,why)=>has(k)?`<div class="rl"><div class="rl-pic">${pic(k,nums(k,rule,why),true)}</div><dl class="rl-l"><dt>Rule</dt><dd>${esc(rule)}</dd><dt>Why</dt><dd>${esc(why||'A process rule: it keeps every trade inside the plan.')}</dd><dt>How</dt><dd>${esc(HOW[k])}</dd></dl></div>`:'';
-  return {has,mini,html,nums};
+  // TODAY's plan art (isionxxx ARCHITECTURE.md, 2h): a picture as a small SVG in the shared plan-art classes (pa-*), which
+  // TODAY colours with the palette, light or dark, so it shows without this app's CSS. M: class here → [pa classes, attributes]
+  const toArt=(svg,M)=>{try{const r=new DOMParser().parseFromString(svg,'image/svg+xml').documentElement;if(r.nodeName!=='svg')return '';
+    [r,...r.querySelectorAll('*')].forEach(e=>{const k=[];(e.getAttribute('class')||'').split(/\s+/).forEach(c=>{const m=M[c];if(!m)return;if(m[0])k.push(m[0]);for(const a in m[1]||{})e.setAttribute(a,m[1][a])});
+      e.removeAttribute('class');e.removeAttribute('style');e.removeAttribute('aria-hidden');if(k.length)e.setAttribute('class',k.join(' '))});
+    return new XMLSerializer().serializeToString(r)}catch(e){return ''}};
+  // TODAY's plan: the day's focus rule, beside the pre-market plan
+  const art=(k,rule,why)=>has(k)?toArt(pic(k,nums(k,rule,why)),{'rl-win':['pa-w'],'rl-winf':['pa-w'],'rl-loss':['pa-e'],'rl-lossf':['pa-e'],'rl-faint':['',{opacity:'.35'}],'rl-dot':['pa-p'],
+    'rl-off':['pa-n'],'rl-chip':['pa-n'],'rl-dash':['pa-sb',{fill:'none','stroke-width':'5','stroke-dasharray':'12 9'}],'rl-cap':['pa-sp',{'stroke-width':'8','stroke-dasharray':'16 10'}],
+    'rl-axis':['pa-sb',{'stroke-width':'7'}],'rl-wait':['pa-a pa-sp',{'stroke-width':'5','stroke-dasharray':'12 9'}],'rl-eq':['pa-sk',{fill:'none','stroke-width':'11'}],
+    'rl-stop':['pa-se',{'stroke-width':'8','stroke-dasharray':'16 10'}],'rl-up':['pa-sp',{fill:'none','stroke-width':'7'}],'rl-tick':['pa-sp',{fill:'none','stroke-width':'7'}],
+    'rl-x':['pa-se',{'stroke-width':'5'}],'rl-xs':['',{'stroke-width':'3'}]}):'';
+  return {has,mini,html,nums,art};
 })();
