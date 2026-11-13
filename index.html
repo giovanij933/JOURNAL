@@ -137,7 +137,21 @@ dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .pm-ml{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .pm-ml label{display:inline;font-size:inherit;letter-spacing:0;text-transform:none;color:var(--tx)}
 .pm-ml span{display:inline-flex;align-items:center;gap:4px}.pm-ml input{width:120px}
-.pm-f{font-size:15px}.rvh h3:focus{outline:0;box-shadow:none}.ui-set input[data-f]{width:110px;flex:none}
+.pm-f{font-size:15px}
+/* a focus rule's picture (rulemap.js): beside the rule in the plan and the daily review; its ⓘ opens the guide */
+.rl-svg{display:block;width:100%;height:auto;overflow:visible}.rl-t{font:500 13px var(--f);fill:var(--text-secondary)}.rl-t.rl-mid{text-anchor:middle}.rl-t.rl-end{text-anchor:end}
+.rl-t.rl-acc{fill:var(--accent-text);font-weight:600}.rl-t.rl-err{fill:var(--error-text);font-weight:600}.rl-t.rl-on{fill:var(--on-accent);font-weight:700}.rl-t.rl-big{font-size:18px;font-weight:700;fill:var(--text-primary)}
+.rl-win,.rl-winf{fill:var(--success)}.rl-loss,.rl-lossf{fill:var(--error)}.rl-faint{opacity:.35}.rl-dot{fill:var(--accent)}.rl-off,.rl-chip{fill:var(--track)}.rl-off{opacity:.9}.rl-dash{fill:none;stroke:var(--border);stroke-dasharray:5 4;stroke-width:2}
+.rl-cap{stroke:var(--accent);stroke-width:3;stroke-dasharray:6 4}.rl-axis{stroke:var(--border);stroke-width:2}.rl-wait{fill:var(--accent-soft);stroke:var(--accent);stroke-dasharray:5 4;stroke-width:2}
+.rl-eq{fill:none;stroke:var(--text-primary);stroke-width:4;stroke-linejoin:round;stroke-linecap:round}.rl-stop{stroke:var(--error);stroke-width:3;stroke-dasharray:8 5}
+.rl-up,.rl-tick{fill:none;stroke:var(--accent);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.rl-x{stroke:var(--error);stroke-width:5;stroke-linecap:round}.rl-x.rl-xs{stroke-width:3}
+.rl-sm .rl-eq{stroke-width:11}.rl-sm .rl-cap{stroke-width:8;stroke-dasharray:16 10}.rl-sm .rl-stop{stroke-width:8;stroke-dasharray:16 10}.rl-sm .rl-up,.rl-sm .rl-axis,.rl-sm .rl-tick{stroke-width:7}.rl-sm .rl-wait{stroke-width:5}
+.rl-mini{flex:none;display:inline-flex;width:76px;height:38px;align-items:center}.rl-mini .rl-svg{width:76px;height:38px}
+.pm-f:has(.rl-mini),.rl-row{display:flex;align-items:center;gap:12px}.pm-f:has(.rl-mini)>b{flex:1;min-width:0}
+.rl-ib{all:unset;box-sizing:border-box;flex:none;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-6px -10px -6px -6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.rl-ib:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:50%}.rl-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1.5px solid currentColor;color:var(--accent-text);font:600 11px/1 var(--f);letter-spacing:0}
+.rl{margin:0 0 14px}.rl-pic{display:flex;justify-content:center;margin:6px 0 18px}.rl-pic .rl-svg{max-width:340px}
+.rl-l{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;line-height:1.45}.rl-l dt{padding-top:2px;color:var(--text-secondary);font-size:11px;letter-spacing:.05em;text-transform:uppercase}.rl-l dd{margin:0;color:var(--text-primary)}.rvh h3:focus{outline:0;box-shadow:none}.ui-set input[data-f]{width:110px;flex:none}
 .pm-r{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.pm-r span{flex:1 1 260px}.pm-r button{flex:none;padding:4px 10px;font-size:11px}
 .pm-ck{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}
 .pm-ck label{flex-direction:row;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--g-line2);border-radius:var(--g-r3);background:var(--raised);font-size:13px;letter-spacing:0;text-transform:none;color:var(--tx);cursor:pointer}
@@ -183,11 +197,13 @@ h1.brand{margin:0}
 <div id="xf" class="xf" role="region" aria-label="Active filters" hidden></div>
 <main id="app"></main>
 <dialog id="dlg"></dialog>
+<dialog id="gd" aria-labelledby="gdt"></dialog>
 <div id="toast" role="status" popover="manual"></div>
 
 <script src="db.js"></script>
 <script src="sync.js" data-keys="isx.journal.v1"></script>
 <script src="ui.js"></script>
+<script src="rulemap.js"></script>
 <script type="isx/app">
 'use strict';
 const KEY='isx.journal.v1', PAGE=20;
@@ -733,7 +749,7 @@ function review(day){
   if(P){const TA=U.acct==='all'?T:onDay(every,day),na=TA.length,pa=r2(TA.reduce((a,t)=>a+t.pnl,0)),lead=na>n?'Across all my accounts, ':'';
     const hit=hitAt(TA,P.loss),at=hit<0?0:r2(TA.slice(0,hit+1).reduce((a,t)=>a+t.pnl,0)),miss=CHK.filter(([k])=>!ticked(P,k)).map(c=>c[1]);
     const after=hit<na-1?` and took ${pl(na-1-hit,'more trade')} after that`:' and stopped there';
-    out+=sec('My plan',`<p>My focus rule for the day: <b>${esc(P.rule)}</b> Did I follow it?</p>`+
+    out+=sec('My plan',`<p${window.RLG?.has(P.focus)?' class="rl-row"':''}>${window.RLG?.mini(P.focus,P.rule,P.why)||''}<span>My focus rule for the day: <b>${esc(P.rule)}</b> Did I follow it?</span></p>`+
       `<p>${!(P.loss>0)?"I didn't set a max loss.":`My max loss was <b>${usd0(-P.loss)}</b>. ${lead}`+(pa<-P.loss?`I finished at ${$$(pa)}: <b class="neg">past my max-loss line by ${usd(-P.loss-pa)}</b>. I reached it on trade ${hit+1}${after}.`
         :hit<0?'I stayed inside it.':`I reached it on trade ${hit+1} (${usd(at)})${after}. I finished at ${$$(pa)}.`)}</p>`+
       `<p>${miss.length?`I ticked ${CHK.length-miss.length} of ${CHK.length} on my checklist (missed: ${miss.join(', ')}).`:'I ticked my whole checklist before the open.'}</p>`)}
@@ -872,6 +888,13 @@ function premkt(day){
   return {day,n,dk,thin,proc,bh,wh,bi,R,pick:R[0],loss:S.maxLoss||(mr?nice(mr):null),
     why:S.maxLoss?'From my settings.':mr?`My median red day over my last ${pls(red.length,'red day')} was ${usd(-mr)}, rounded.`:'Not enough red days yet to suggest one, so I set my own.'};
 }
+// a focus rule's guide (rulemap.js): its picture with my numbers, the rule, why it is my focus and how to keep it.
+// Opens over the plan; DONE, a tap outside, Escape or a swipe down close it
+function rlGuide(p){
+  const d=$('#gd');if(!window.RLG?.has(p.focus)||!d)return;
+  d.innerHTML=`<h3 id="gdt">${esc(p.short).toUpperCase()}</h3>${RLG.html(p.focus,p.rule,p.why)}<div class="fa2"><button type="button" class="pri" data-gx style="flex:1">DONE</button></div>`;
+  d.onclick=e=>{if(e.target===d||e.target.closest('[data-gx]'))d.close()};d.showModal();d.querySelector('[data-gx]').focus();
+}
 function planForm(){
   const P=premkt(pmDay()),day=P.day,f=P.pick;
   if(!S.plans[day]){S.plans[day]={focus:f.k,rule:f.rule,short:f.short,why:f.why,loss:P.loss,ticks:{}};save()}
@@ -887,13 +910,14 @@ function planForm(){
   dlg.innerHTML=`<div id="pmf"><div class="rvh"><h3 tabindex="-1" autofocus>${day===tday(Date.now())?"TODAY'S":pd(day).toLocaleDateString('en-US',{weekday:'long'}).toUpperCase()+"'S"} PLAN · ${dlabel(day).toUpperCase()}</h3></div>
     ${sec('Where my edge is',edge)}
     ${sec('My max loss',`<p class="pm-ml"><label for="pml">Stop for the day at</label><span>−$<input id="pml" type="number" min="0" step="any" inputmode="decimal" placeholder="set one" value="${p.loss>0?p.loss:''}"></span></p><p class="dim" id="pmh"></p>${T.length?'<p id="pmt"></p>':''}`)}
-    ${sec('My focus',`<p class="pm-f"><b id="pmr"></b></p><p class="dim" id="pmw"></p><p class="dim pm-r"><span>${note}</span>${P.R.length>1?'<button type="button" data-pm="swap">OTHER RULE</button>':''}</p>`)}
+    ${sec('My focus',`<p class="pm-f">${window.RLG?'<span id="pmm"></span>':''}<b id="pmr"></b>${window.RLG?'<button type="button" class="rl-ib" id="pmi"><span class="rl-i" aria-hidden="true">i</span></button>':''}</p><p class="dim" id="pmw"></p><p class="dim pm-r"><span>${note}</span>${P.R.length>1?'<button type="button" data-pm="swap">OTHER RULE</button>':''}</p>`)}
     ${sec('Before the open',`<div class="pm-ck">${CHK.map(([k,l])=>`<label><input type="checkbox" data-pm="${k}"${ticked(p,k)?' checked':''}>${l}</label>`).join('')}</div>`)}
     <div class="fa2"><span class="dim" id="pms" role="status"></span><button type="button" class="pri" data-a="x">DONE</button></div></div>`;
   const paint=()=>{
     $('#pmh').textContent=!(p.loss>0)?(P.loss?`No line for this day. My default is ${usd0(P.loss)}.`:P.why):p.loss===P.loss?P.why:`Set for this day.${P.loss?` My default is ${usd0(P.loss)}.`:''}`;
     if(T.length)$('#pmt').innerHTML=`So far: ${$$(np)} over ${pls(T.length,'trade')}.`+(p.loss>0&&np<=-p.loss?` <b class="neg">I've reached my max-loss line: done for the day.</b>`:'');
     $('#pmr').textContent=p.rule;$('#pmw').textContent=p.why||'';$('#pmw').hidden=!p.why;
+    if(window.RLG){const has=RLG.has(p.focus);$('#pmm').innerHTML=has?RLG.mini(p.focus,p.rule,p.why):'';$('#pmm').hidden=!has;$('#pmi').hidden=!has;$('#pmi').setAttribute('aria-label',`${p.short}: how to keep it`)}
     const ml=el.querySelector('[data-pm=ml]');ml.disabled=!(p.loss>0);ml.checked=ticked(p,'ml');
     const k=CHK.filter(([k])=>ticked(p,k)).length;$('#pms').textContent=k===CHK.length?'Ready ✓':`${k} of ${CHK.length} ticked`;
   };
@@ -902,7 +926,7 @@ function planForm(){
   el.addEventListener('change',e=>{const k=e.target.dataset.pm;if(k){p.ticks[k]=e.target.checked;save();paint()}else if(dirty){dirty=false;save()}});
   dlg.addEventListener('close',()=>{if(dirty){dirty=false;save()}},{once:true});
   // another of my weak spots for today: the next one in the rotation
-  el.addEventListener('click',e=>{if(!e.target.closest('[data-pm=swap]'))return;const i=P.R.findIndex(r=>r.k===p.focus),r=P.R[(i+1)%P.R.length];
+  el.addEventListener('click',e=>{if(e.target.closest('#pmi'))return rlGuide(p);if(!e.target.closest('[data-pm=swap]'))return;const i=P.R.findIndex(r=>r.k===p.focus),r=P.R[(i+1)%P.R.length];
     Object.assign(p,{focus:r.k,rule:r.rule,short:r.short,why:r.why});save();paint()});
   paint();
   if(!dlg.open)dlg.showModal();
