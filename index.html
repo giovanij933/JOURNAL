@@ -942,7 +942,8 @@ function planRows(){
       const k=Object.keys(D),v=r2(k.reduce((a,d)=>a+D[d],0));
       return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last day',act:'review'}}
     const P=premkt(day),p=S.plans[day],f=p||P.pick,loss=p?p.loss:P.loss;
-    return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>ticked(p,k))};
+    // art: the focus rule's picture, for TODAY's plan (rulemap.js)
+    return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>ticked(p,k)),art:window.RLG?.art(f.focus||f.k,f.rule,f.why)||undefined};
   };
   const now=new Date();
   if(!S.roll||now.getHours()>=S.roll)return [row(+now)];
