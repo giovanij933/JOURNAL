@@ -942,7 +942,9 @@ function planForm(){
   };
   const el=$('#pmf');let dirty=false;
   el.addEventListener('input',e=>{if(e.target.id==='pml'){const v=+e.target.value;p.loss=v>0?r2(v):null;dirty=true;paint()}});
-  el.addEventListener('change',e=>{const k=e.target.dataset.pm;if(k){p.ticks[k]=e.target.checked;save();paint()}else if(dirty){dirty=false;save()}});
+  el.addEventListener('change',e=>{const k=e.target.dataset.pm,ready=()=>CHK.every(([c])=>ticked(p,c));if(k){const was=ready();p.ticks[k]=e.target.checked;save();paint();
+    // the checklist done, ready for the open: light rises from it (UI.bloom, ARCHITECTURE.md 2m). The process, never a result
+    if(!was&&ready())window.UI?.bloom?.(el.querySelector('.pm-ck'))}else if(dirty){dirty=false;save()}});
   dlg.addEventListener('close',()=>{if(dirty){dirty=false;save()}},{once:true});
   // another of my weak spots for today: the next one in the rotation
   el.addEventListener('click',e=>{if(e.target.closest('#pmi'))return rlGuide(p);if(!e.target.closest('[data-pm=swap]'))return;const i=P.R.findIndex(r=>r.k===p.focus),r=P.R[(i+1)%P.R.length];
@@ -1031,6 +1033,7 @@ $('#file').addEventListener('change',async e=>{
 
 function boot(){setMonth(S.trades.length?Math.max(...S.trades.map(t=>t.close)):Date.now());render()}
 boot();
+window.UI?.backdrop?.({tint:['--accent','--success','--info']});   // ARCHITECTURE.md 2m
 UI.planner('journal',[KEY],planRows);
 // another ISIONXXX app can send you straight to an action here (REWIRE's LOG buttons): #do=<action> or a message
 // 'today' (from TODAY's rings and timeline): drop any card filters and show just today, as a chip you can clear
