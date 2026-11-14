@@ -47,8 +47,8 @@ button:hover,select:hover{border-color:var(--accent);color:var(--accent-text)}
 .g{display:grid;gap:12px;margin-bottom:12px}
 .g4{grid-template-columns:repeat(4,1fr)}.g21{grid-template-columns:2fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
 .card{background:var(--panel);border:1px solid var(--line);padding:16px;min-width:0}
-.h{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-primary);margin-bottom:12px}
-.k{font-size:11px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase}
+.h{font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:12px}
+.k{font-size:12px;color:var(--dim)}
 .big{font-size:22px;font-weight:600;margin:2px 0 8px}
 .rowh{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
 .empty{margin-bottom:12px;border-color:var(--border)}
@@ -65,11 +65,11 @@ button:hover,select:hover{border-color:var(--accent);color:var(--accent-text)}
 .ev.rule{border-top:1px solid var(--line);margin-top:4px;padding-top:10px}
 .hb{height:20px;background:var(--track);margin:2px 0 10px}
 .hb i{display:block;height:100%}
-.sec{font-size:10px;letter-spacing:.06em;color:var(--dim);text-transform:uppercase;margin:12px 0 4px;padding-top:12px;border-top:1px solid var(--line)}
+.sec{font-size:11px;color:var(--dim);margin:12px 0 4px;padding-top:12px;border-top:1px solid var(--line)}
 .sec.first{border:0;margin-top:0;padding-top:0}
 
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) minmax(0,.9fr);gap:4px}
-.dw{font-size:11px;color:var(--dim);text-align:center;padding:4px 0;letter-spacing:.05em;text-transform:uppercase}
+.dw{font-size:12px;color:var(--dim);text-align:center;padding:4px 0}
 .cd{min-height:66px;padding:6px;border:1px solid var(--line);background:var(--raised);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:11px;letter-spacing:0;color:var(--dim);overflow:hidden}
 .cd b{font-size:12px}.cd em{font-style:normal;font-size:10px}
 .cd.we,.cd.off{background:repeating-linear-gradient(135deg,var(--raised) 0 6px,var(--border-soft) 6px 7px)}
@@ -99,7 +99,7 @@ button:hover,select:hover{border-color:var(--accent);color:var(--accent-text)}
 .gauge path.pick:hover{filter:brightness(1.3)}.gauge path.off,.chart .off{opacity:.25}
 .chart rect.pick:hover{filter:brightness(1.35)}.chart .hit{fill:transparent}.chart .hit:hover{fill:var(--accent-soft)}
 .xf{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:-4px 0 12px}
-.xf span{color:var(--dim);font-size:11px;letter-spacing:.05em;text-transform:uppercase;margin-right:2px}
+.xf span{color:var(--dim);font-size:12px;margin-right:2px}
 .xf button{border-color:var(--accent);color:var(--accent-text);padding:5px 8px}.xf button b{font-weight:600}.xf .clr{border-color:var(--line2);color:var(--dim)}
 .nd{height:160px;display:grid;place-items:center;color:var(--dim);letter-spacing:.06em;font-size:11px}
 .radar{display:block;width:100%;max-width:230px;margin:0 auto}
@@ -110,7 +110,7 @@ button:hover,select:hover{border-color:var(--accent);color:var(--accent-text)}
 .tw{overflow-x:auto;position:relative}
 table{width:100%;min-width:940px;border-collapse:collapse}
 th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
-th{font-size:11px;font-weight:500;color:var(--dim);letter-spacing:.05em;text-transform:uppercase}
+th{font-size:12px;font-weight:500;color:var(--dim)}
 th.r,td.r{text-align:right}
 td button{padding:2px 7px;font-size:11px}
 footer{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:16px;font-size:11px;color:var(--dim)}
@@ -118,9 +118,9 @@ footer select,footer button{padding:3px 8px;font-size:11px}
 
 dialog{background:var(--panel);color:var(--tx);border:1px solid var(--border-soft);padding:20px;width:min(560px,calc(100vw - 24px))}
 dialog::backdrop{background:var(--scrim)}
-dialog h3{margin:0 0 14px;font-size:13px;letter-spacing:.06em;color:var(--text-primary)}
+dialog h3{margin:0 0 14px;font-size:17px;font-weight:600;color:var(--text-primary)}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--dim)}
 label input,label select,label textarea,dialog textarea{width:100%;font-size:13px;letter-spacing:0;text-transform:none;color:var(--tx)}
 textarea{resize:vertical}
 .fa2{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:14px}
@@ -128,7 +128,7 @@ textarea{resize:vertical}
 dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .rvh{display:flex;align-items:center;gap:8px;margin-bottom:6px}.rvh h3{margin:0;flex:1}
 .rv{border-top:1px solid var(--line);padding:14px 0 4px;font-size:14px;line-height:1.7}
-.rv h4{margin:0 0 6px;font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.rv h4{margin:0 0 6px;font-size:12px;font-weight:500;color:var(--dim)}
 .rv p{margin:0 0 8px}.rv b{font-weight:600}.rv q{color:var(--dim);font-style:italic}
 .rv ol,.rv ul{margin:0 0 8px;padding-left:22px}.rv li{margin:0 0 6px}.rv li::marker{color:var(--dim)}
 .rv .tr{display:block;color:var(--dim);font-size:12px}
@@ -152,7 +152,7 @@ dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .rl-ib{all:unset;box-sizing:border-box;flex:none;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;margin:-6px -10px -6px -6px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .rl-ib:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:50%}.rl-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1.5px solid currentColor;color:var(--accent-text);font:600 11px/1 var(--f);letter-spacing:0}
 .rl{margin:0 0 14px}.rl-pic{display:flex;justify-content:center;margin:6px 0 18px}.rl-pic .rl-svg{max-width:340px}
-.rl-l{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;line-height:1.45}.rl-l dt{padding-top:2px;color:var(--text-secondary);font-size:11px;letter-spacing:.05em;text-transform:uppercase}.rl-l dd{margin:0;color:var(--text-primary)}.rvh h3:focus{outline:0;box-shadow:none}.ui-set input[data-f]{width:110px;flex:none}
+.rl-l{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;line-height:1.45}.rl-l dt{padding-top:2px;color:var(--text-secondary);font-size:12px}.rl-l dd{margin:0;color:var(--text-primary)}.rvh h3:focus{outline:0;box-shadow:none}.ui-set input[data-f]{width:110px;flex:none}
 .pm-r{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.pm-r span{flex:1 1 260px}.pm-r button{flex:none;padding:4px 10px;font-size:11px}
 .pm-ck{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 8px}
 .pm-ck label{flex-direction:row;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--g-line2);border-radius:var(--g-r3);background:var(--raised);font-size:13px;letter-spacing:0;text-transform:none;color:var(--tx);cursor:pointer}
@@ -177,12 +177,12 @@ h1.brand{margin:0}
 <header class="top">
   <h1 class="brand">ISIONXXX JOURNAL</h1>
   <div class="acts">
-    <button class="pri" data-a="add">+ TRADE</button>
-    <button data-a="plan">PLAN</button>
-    <button data-a="note">NOTES</button>
-    <button data-a="review" data-more>REVIEW</button>
-    <button data-a="imp" data-more>IMPORT</button>
-    <button data-a="set" data-more>SETTINGS</button>
+    <button class="pri" data-a="add">+ Trade</button>
+    <button data-a="plan">Plan</button>
+    <button data-a="note">Notes</button>
+    <button data-a="review" data-more>Review</button>
+    <button data-a="imp" data-more>Import</button>
+    <button data-a="set" data-more>Settings</button>
     <input id="file" type="file" accept=".csv,.json,text/csv,application/json" hidden>
   </div>
 </header>
@@ -314,7 +314,7 @@ function stats(T){
 }
 
 /* ---------- svg ---------- */
-const ARC='M12 62A50 50 0 0 1 112 62', ND='<div class="nd">NO DATA_</div>';
+const ARC='M12 62A50 50 0 0 1 112 62', ND='<div class="nd">No data</div>';
 // a segment can carry a cross-filter (f = 'key:value'): click it to filter, and it stays bright while the others dim
 function gauge(segs,label){
   let off=0;
@@ -351,7 +351,7 @@ function radar(ax,tips=[]){
   const cx=100,cy=92,R=68,ang=[-90,30,150].map(a=>a*Math.PI/180);
   const pt=(i,f)=>`${(cx+Math.cos(ang[i])*R*f).toFixed(1)},${(cy+Math.sin(ang[i])*R*f).toFixed(1)}`;
   const poly=(c,fs)=>`<polygon class="${c}" points="${fs.map((f,i)=>pt(i,f)).join(' ')}"/>`;
-  return `<svg class="radar" viewBox="0 0 200 160">${[.25,.5,.75,1].map(f=>poly('rg',[f,f,f])).join('')}${poly('rv',ax.map(v=>Math.max(v,3)/100))}<text x="100" y="14" text-anchor="middle">WIN/LOSS<title>${esc(tips[0]||'')}</title></text><text x="168" y="144" text-anchor="middle">WIN %<title>${esc(tips[1]||'')}</title></text><text x="30" y="144" text-anchor="middle">PF<title>${esc(tips[2]||'')}</title></text></svg>`;
+  return `<svg class="radar" viewBox="0 0 200 160">${[.25,.5,.75,1].map(f=>poly('rg',[f,f,f])).join('')}${poly('rv',ax.map(v=>Math.max(v,3)/100))}<text x="100" y="14" text-anchor="middle">Win/loss<title>${esc(tips[0]||'')}</title></text><text x="168" y="144" text-anchor="middle">Win %<title>${esc(tips[1]||'')}</title></text><text x="30" y="144" text-anchor="middle">PF<title>${esc(tips[2]||'')}</title></text></svg>`;
 }
 
 /* ---------- render ---------- */
@@ -385,7 +385,7 @@ function calendar(){
   <div class="rowh"><div><p class="h">P&amp;L calendar</p><div class="k">Total</div><div class="big ${cls(tot)}">${usd(tot)}</div></div>
    <div>Winning: <b class="pos">${wd}</b> &nbsp; Losing: <b class="neg">${ld}</b></div></div>
   <div class="cal">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun','Week'].map(d=>`<div class="dw">${d}</div>`).join('')}${h}</div>
-  <div class="calf"><div><button data-a="prev" aria-label="Previous month">&lt;</button> <b>${new Date(y,m,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}</b> <button data-a="next" aria-label="Next month">&gt;</button> <button data-a="tod">TODAY</button></div>
+  <div class="calf"><div><button data-a="prev" aria-label="Previous month">&lt;</button> <b>${new Date(y,m,1).toLocaleDateString('en-US',{month:'long',year:'numeric'})}</b> <button data-a="next" aria-label="Next month">&gt;</button> <button data-a="tod">Today</button></div>
    <span class="dim">${td} trading day${td===1?'':'s'} · ${nT} trade${nT===1?'':'s'}</span></div></div>`;
 }
 
@@ -398,11 +398,11 @@ function table(T){
   U.page=Math.min(Math.max(U.page,0),pages-1);
   const body=rows.slice(U.page*PAGE,(U.page+1)*PAGE).map(t=>`<tr>
    <td>${tfmt(t.close)}</td><td class="dim">${esc(t.account)}</td><td><b>${esc(t.contract)}</b></td>
-   <td>${t.side==='Short'?'<span class="sd-s" aria-hidden="true">&#9662;</span> SHORT':'<span class="sd-l" aria-hidden="true">&#9652;</span> LONG'}</td><td class="r">${t.qty}</td><td class="r">${px(t.entry)}</td><td class="r">${px(t.exit)}</td>
+   <td>${t.side==='Short'?'<span class="sd-s" aria-hidden="true">&#9662;</span> Short':'<span class="sd-l" aria-hidden="true">&#9652;</span> Long'}</td><td class="r">${t.qty}</td><td class="r">${px(t.entry)}</td><td class="r">${px(t.exit)}</td>
    <td>${dur((t.close-t.open)/1000)}</td><td class="r">${usd(t.fee)}</td><td class="r">${usd(t.comm)}</td>
    <td class="r"><b class="${cls(t.pnl)}">${usd(t.pnl,1)}</b></td>
-   <td class="r">${t.note?`<span class="amb" title="${esc(t.note)}">*</span> `:''}<button data-a="edit" data-v="${t.id}">EDIT</button> <button data-a="del" data-v="${t.id}" aria-label="Delete trade">X</button></td></tr>`).join('');
-  return `<div class="card"><div class="rowh"><p class="h">Log</p><button data-a="csv">EXPORT CSV</button></div>
+   <td class="r">${t.note?`<span class="amb" title="${esc(t.note)}">*</span> `:''}<button data-a="edit" data-v="${t.id}">Edit</button> <button data-a="del" data-v="${t.id}" aria-label="Delete trade">X</button></td></tr>`).join('');
+  return `<div class="card"><div class="rowh"><p class="h">Log</p><button data-a="csv">Export CSV</button></div>
   <div class="tw" tabindex="0" role="region" aria-label="Table"><table><thead><tr><th>${F.th(0)}</th><th>${F.th(1)}</th><th>${F.th(2)}</th><th>${F.th(3)}</th><th class="r">${F.th(4)}</th><th class="r">${F.th(5)}</th><th class="r">${F.th(6)}</th><th>${F.th(7)}</th><th class="r">${F.th(8)}</th><th class="r">${F.th(9)}</th><th class="r">${F.th(10)}</th><th><span class="ui-sr">Actions</span></th></tr></thead>
   <tbody>${body||'<tr><td colspan="12" class="dim">No trades in this view_</td></tr>'}</tbody></table></div>
   <div class="calf"><div><button data-a="pp">&lt;</button> Page <b>${U.page+1}</b> of ${pages} <button data-a="pn">&gt;</button></div><span class="dim">${rows.length} record${rows.length===1?'':'s'}${F.clear()}</span></div></div>`;
@@ -442,7 +442,7 @@ function render(){
   $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(s.dk.length?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk.at(-1))}`:'');
 
   UI.paint($('#top'),heroToday(),{now:true});
-  UI.paint($('#app'),`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: a year of trades from a profitable futures trader.</p><button class="pri" data-a="add">+ TRADE</button> <button data-a="imp">IMPORT</button> <button data-a="sample">LOAD SAMPLE</button></div>`}
+  UI.paint($('#app'),`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: a year of trades from a profitable futures trader.</p><button class="pri" data-a="add">+ Trade</button> <button data-a="imp">Import</button> <button data-a="sample">Load sample</button></div>`}
 <section class="g g4">
  <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${nw}</div>
   ${gauge([[nw?sw.w/nw:0,'sg','stat:win',`Wins: ${sw.w}`],[nw?sw.be/nw:0,'sd','stat:be',`Breakeven: ${sw.be}`],[nw?sw.l/nw:0,'sr','stat:loss',`Losses: ${sw.l}`]],nw?Math.round(sw.wr)+'%':'—')}
@@ -493,7 +493,7 @@ ${(()=>{const B=brk(view(true,'hour')),BW=brk(view(true,'wd')),BI=brk(view(true,
   ${bars0(BW.wd,1,pt('wd',i=>DW[i],BW.wd))}<div class="hl">${DW.map(d=>`<span>${d}</span>`).join('')}</div>
   <div class="ev rule"><span class="dim">Best day / worst day</span><b><span class="pos">${bd==null?'—':DW[bd]}</span> / <span class="neg">${wdd==null?'—':DW[wdd]}</span></b></div></div>
  <div class="card"><p class="h">By instrument</p><div class="k">Net P&amp;L · win rate · profit factor</div>
-  ${BI.inst.length?BI.inst.map(([k,g])=>`<div class="ev pick${U.x.inst===k?' on':''}" role="button" tabindex="0" aria-pressed="${U.x.inst===k}" data-a="xf" data-v="inst:${esc(k)}"><span>${esc(k)} <span class="dim">· ${g.n} trade${g.n===1?'':'s'}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% · ${pf(g)}</span></b></div>`).join(''):'<div class="nd">NO DATA_</div>'}
+  ${BI.inst.length?BI.inst.map(([k,g])=>`<div class="ev pick${U.x.inst===k?' on':''}" role="button" tabindex="0" aria-pressed="${U.x.inst===k}" data-a="xf" data-v="inst:${esc(k)}"><span>${esc(k)} <span class="dim">· ${g.n} trade${g.n===1?'':'s'}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% · ${pf(g)}</span></b></div>`).join(''):'<div class="nd">No data</div>'}
   <div class="sec">Long vs short</div>
   ${['Long','Short'].map(k=>{const g=BS.side[k];return g?`<div class="ev pick${U.x.side===k?' on':''}" role="button" tabindex="0" aria-pressed="${U.x.side===k}" data-a="xf" data-v="side:${k}"><span>${k} <span class="dim">· ${g.n}</span></span><b><span class="${cls(g.pnl)}">${usd(g.pnl,1)}</span> <span class="dim">· ${Math.round(g.w/g.n*100)}% win</span></b></div>`:`<div class="ev"><span>${k}</span><b class="dim">—</b></div>`}).join('')}</div>
 </section>`})()}
@@ -513,7 +513,7 @@ function tradeForm(t){
   // $ per point: the standard one, else what I used last for that market. 1 is what an import puts in for a market it
   // doesn't know, so it isn't remembered: the field stays blank until I enter the real value
   const MU={};R.forEach(x=>{if(x.mult>0&&x.mult!==1)MU[root(x.contract)]=x.mult});
-  dlg.innerHTML=`<form id="tf"><h3>${t?'EDIT':'NEW'} TRADE</h3>
+  dlg.innerHTML=`<form id="tf"><h3>${t?'Edit':'New'} trade</h3>
   <div class="fgrid">
    <label>Account<input name="account" list="accts" required value="${esc(d.account)}"></label>
    <label>Contract<input name="contract" required value="${esc(d.contract)}" placeholder="NQZ6"></label>
@@ -529,7 +529,7 @@ function tradeForm(t){
   </div>
   <label>Note<textarea name="note" rows="3">${esc(d.note||'')}</textarea></label>
   <datalist id="accts">${[...new Set(S.trades.map(x=>x.account))].map(a=>`<option value="${esc(a)}">`).join('')}</datalist>
-  <div class="fa2"><span id="pv"></span><button type="button" data-a="x">CANCEL</button><button class="pri">SAVE</button></div></form>`;
+  <div class="fa2"><span id="pv"></span><button type="button" data-a="x">Cancel</button><button class="pri">Save</button></div></form>`;
   const f=$('#tf'),e=f.elements;let touched=!!t;
   const read=()=>({account:e.account.value.trim(),contract:e.contract.value.trim().toUpperCase(),side:e.side.value,qty:+e.qty.value,entry:+e.entry.value,exit:+e.exit.value,
     open:new Date(e.open.value).getTime(),close:new Date(e.close.value).getTime(),mult:+e.mult.value,fee:+e.fee.value||0,comm:+e.comm.value||0,note:e.note.value.trim()});
@@ -551,8 +551,8 @@ function tradeForm(t){
   dlg.showModal();
 }
 function noteForm(day){
-  dlg.innerHTML=`<form id="nf"><h3>NOTES · ${dlabel(day)}</h3><textarea name="n" rows="10" placeholder="Plan. Execution. What to repeat. What to cut.">${esc(S.notes[day]||'')}</textarea>
-  <div class="fa2"><button type="button" data-a="x">CANCEL</button><button class="pri">SAVE</button></div></form>`;
+  dlg.innerHTML=`<form id="nf"><h3>Notes · ${dlabel(day)}</h3><textarea name="n" rows="10" placeholder="Plan. Execution. What to repeat. What to cut.">${esc(S.notes[day]||'')}</textarea>
+  <div class="fa2"><button type="button" data-a="x">Cancel</button><button class="pri">Save</button></div></form>`;
   $('#nf').addEventListener('submit',ev=>{ev.preventDefault();const v=ev.target.elements.n.value.trim();if(v)S.notes[day]=v;else delete S.notes[day];save();dlg.close();render()});
   dlg.showModal();
 }
@@ -832,10 +832,10 @@ function reviewForm(day){
   const D=rvDays();if(!D.length)return toast('No trades to review yet');
   day=D.includes(day)?day:rvDefault();const i=D.indexOf(day);
   dlg.classList.add('rvd');dlg.addEventListener('close',()=>dlg.classList.remove('rvd'),{once:true});
-  dlg.innerHTML=`<div class="rvh"><h3>DAILY REVIEW · ${dlabel(day).toUpperCase()}</h3>
+  dlg.innerHTML=`<div class="rvh"><h3>Daily review · ${dlabel(day)}</h3>
     <button type="button" data-a="rvgo" data-v="${D[i-1]||''}" ${i>0?'':'disabled'} aria-label="Previous trading day">&lt;</button><button type="button" data-a="rvgo" data-v="${D[i+1]||''}" ${i<D.length-1?'':'disabled'} aria-label="Next trading day">&gt;</button></div>
     <div id="rvb">${review(day)}</div>
-    <div class="fa2"><span><button type="button" data-a="rvcopy">COPY</button></span><button type="button" data-a="rvnote" data-v="${day}">WRITE NOTES</button><button type="button" class="pri" data-a="x">DONE</button></div>`;
+    <div class="fa2"><span><button type="button" data-a="rvcopy">Copy</button></span><button type="button" data-a="rvnote" data-v="${day}">Write notes</button><button type="button" class="pri" data-a="x">Done</button></div>`;
   if(!dlg.open)dlg.showModal();
   dlg.querySelector('#rvb').scrollTop=0;dlg.scrollTop=0;
 }
@@ -910,7 +910,7 @@ function premkt(day){
 // Opens over the plan; DONE, a tap outside, Escape or a swipe down close it
 function rlGuide(p){
   const d=$('#gd');if(!window.RLG?.has(p.focus)||!d)return;
-  d.innerHTML=`<h3 id="gdt">${esc(p.short).toUpperCase()}</h3>${RLG.html(p.focus,p.rule,p.why)}<div class="fa2"><button type="button" class="pri" data-gx style="flex:1">DONE</button></div>`;
+  d.innerHTML=`<h3 id="gdt">${esc(p.short[0].toUpperCase()+p.short.slice(1))}</h3>${RLG.html(p.focus,p.rule,p.why)}<div class="fa2"><button type="button" class="pri" data-gx style="flex:1">Done</button></div>`;
   d.onclick=e=>{if(e.target===d||e.target.closest('[data-gx]'))d.close()};d.showModal();d.querySelector('[data-gx]').focus();
 }
 function planForm(){
@@ -925,12 +925,12 @@ function planForm(){
   const note=P.thin?"Under 20 trades my numbers can't show weak spots yet, so process rules take turns.":P.proc?'No clear weak spot in my numbers, so process rules take turns.'
     :P.R.length>1?`One of my ${P.R.length} weak spots right now. They take turns: the one I focused on least recently comes first.`:'My one clear weak spot right now.';
   dlg.classList.add('rvd');dlg.addEventListener('close',()=>dlg.classList.remove('rvd'),{once:true});
-  dlg.innerHTML=`<div id="pmf"><div class="rvh"><h3 tabindex="-1" autofocus>${day===tday(Date.now())?"TODAY'S":pd(day).toLocaleDateString('en-US',{weekday:'long'}).toUpperCase()+"'S"} PLAN · ${dlabel(day).toUpperCase()}</h3></div>
+  dlg.innerHTML=`<div id="pmf"><div class="rvh"><h3 tabindex="-1" autofocus>${day===tday(Date.now())?"Today's":pd(day).toLocaleDateString('en-US',{weekday:'long'})+"'s"} plan · ${dlabel(day)}</h3></div>
     ${sec('Where my edge is',edge)}
     ${sec('My max loss',`<p class="pm-ml"><label for="pml">Stop for the day at</label><span>−$<input id="pml" type="number" min="0" step="any" inputmode="decimal" placeholder="set one" value="${p.loss>0?p.loss:''}"></span></p><p class="dim" id="pmh"></p>${T.length?'<p id="pmt"></p>':''}`)}
-    ${sec('My focus',`<p class="pm-f">${window.RLG?'<span id="pmm"></span>':''}<b id="pmr"></b>${window.RLG?'<button type="button" class="rl-ib" id="pmi"><span class="rl-i" aria-hidden="true">i</span></button>':''}</p><p class="dim" id="pmw"></p><p class="dim pm-r"><span>${note}</span>${P.R.length>1?'<button type="button" data-pm="swap">OTHER RULE</button>':''}</p>`)}
+    ${sec('My focus',`<p class="pm-f">${window.RLG?'<span id="pmm"></span>':''}<b id="pmr"></b>${window.RLG?'<button type="button" class="rl-ib" id="pmi"><span class="rl-i" aria-hidden="true">i</span></button>':''}</p><p class="dim" id="pmw"></p><p class="dim pm-r"><span>${note}</span>${P.R.length>1?'<button type="button" data-pm="swap">Other rule</button>':''}</p>`)}
     ${sec('Before the open',`<div class="pm-ck">${CHK.map(([k,l])=>`<label><input type="checkbox" data-pm="${k}"${ticked(p,k)?' checked':''}>${l}</label>`).join('')}</div>`)}
-    <div class="fa2"><span class="dim" id="pms" role="status"></span><button type="button" class="pri" data-a="x">DONE</button></div></div>`;
+    <div class="fa2"><span class="dim" id="pms" role="status"></span><button type="button" class="pri" data-a="x">Done</button></div></div>`;
   const paint=()=>{
     $('#pmh').textContent=!(p.loss>0)?(P.loss?`No line for this day. My default is ${usd0(P.loss)}.`:P.why):p.loss===P.loss?P.why:`Set for this day.${P.loss?` My default is ${usd0(P.loss)}.`:''}`;
     if(T.length)$('#pmt').innerHTML=`So far: ${$$(np)} over ${pls(T.length,'trade')}.`+(p.loss>0&&np<=-p.loss?` <b class="neg">I've reached my max-loss line: done for the day.</b>`:'');
@@ -970,16 +970,16 @@ function planRows(){
 }
 
 function settingsForm(){
-  dlg.innerHTML=`<h3>SETTINGS</h3>
+  dlg.innerHTML=`<h3>Settings</h3>
   <div class="ui-set">
     <div><span><b>Trading day</b><small>When a new trading day starts (local time)</small></span><select data-f="roll" aria-label="Trading day rollover">${[0,16,17,18].map(h=>`<option value="${h}"${h===S.roll?' selected':''}>${h?pad(h)+':00':'midnight'}</option>`).join('')}</select></div>
     <div><span><b>Daily max loss</b><small>Your stop for the day in the pre-market plan. Leave blank to use your median red day</small></span><input data-f="maxl" type="number" min="0" step="any" inputmode="decimal" placeholder="Auto" aria-label="Daily max loss in dollars" value="${S.maxLoss||''}"></div>
     ${UI.appearance()}
-    <div><span><b>Sync</b><small>${window.ISXSync?.state==='ok'?'On · this app syncs across your devices':'Keep every app the same on all your devices'}</small></span><span class="ui-set-btns"><button type="button" data-a="sync">SYNC…</button></span></div>
-    <div><span><b>Backup</b><small>Saved on this device. Download a copy, or restore one.</small></span><span class="ui-set-btns"><button type="button" data-a="bak">BACKUP JSON</button><button type="button" data-a="imp">RESTORE</button></span></div>
-    <div><span><b>Delete everything</b><small>Removes all of this app's data on this device.</small></span><span class="ui-set-btns"><button type="button" class="ui-danger" data-a="clear">CLEAR ALL</button></span></div>
+    <div><span><b>Sync</b><small>${window.ISXSync?.state==='ok'?'On · this app syncs across your devices':'Keep every app the same on all your devices'}</small></span><span class="ui-set-btns"><button type="button" data-a="sync">Sync…</button></span></div>
+    <div><span><b>Backup</b><small>Saved on this device. Download a copy, or restore one.</small></span><span class="ui-set-btns"><button type="button" data-a="bak">Back up JSON</button><button type="button" data-a="imp">Restore</button></span></div>
+    <div><span><b>Delete everything</b><small>Removes all of this app's data on this device.</small></span><span class="ui-set-btns"><button type="button" class="ui-danger" data-a="clear">Clear all</button></span></div>
   </div>
-  <div class="fa2"><button type="button" class="pri" data-a="x">DONE</button></div>`;
+  <div class="fa2"><button type="button" class="pri" data-a="x">Done</button></div>`;
   dlg.showModal();
 }
 const ACT={
