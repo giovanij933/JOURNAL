@@ -672,6 +672,7 @@ function sample(){
     flat:['Nothing moved. Fine to stay flat.','Low volume, kept it small.'],
     down:['Two stops in chop. Hit my max loss and closed the platform.','Red day, but the losses were planned ones. Same process tomorrow.','Stopped out on the data release. Check the calendar before the open.'],
     tilt:['Overtraded after the first stop. The revenge trades cost more than the setup.','Moved my stop and turned 1R into 2R. Never widen it.','Down early and kept clicking. Walk away after two losses.']};
+  const ACCT='LIVE-7319204';   // a broker's live account number, as an import would name it
   const G=[];   // the trades with what made them: day, market, stop, tick, side, kind
   days.forEach((d,i)=>{
     if(rnd()<.04)return;   // a day off: an appointment, a cold, nothing worth trading
@@ -693,7 +694,7 @@ function sample(){
         if(kind==='Lt')broke=true}
       const move=res==='B'?(r==='NQ'?tick:0):R*stop,exit=fix(entry+(long?move:-move),tick);
       const held=(res==='W'?6+R*9+rnd()*20:res==='L'?2+rnd()*16:3+rnd()*12)*60e3,open=t.getTime(),close=open+Math.round(held);
-      const tr={id:uid(),account:'SAMPLE-50K',contract:front(r,d),side:long?'Long':'Short',qty,entry,exit,open,close,mult,fee:2.5*qty,comm:2.5*qty,note:rnd()<.16?pick(NOTE[kind]):''};
+      const tr={id:uid(),account:ACCT,contract:front(r,d),side:long?'Long':'Short',qty,entry,exit,open,close,mult,fee:2.5*qty,comm:2.5*qty,note:rnd()<.16?pick(NOTE[kind]):''};
       S.trades.push(tr);G.push({x:tr,i,r,st:stop,tk:tick,lg:long,k:kind});
       const pnl=(exit-entry)*(long?1:-1)*qty*mult-5*qty;dayP+=pnl;if(pnl<0)losses++;
       // the daily stop (two losses or -$700; a big green day often stops early too); in the first quarter, three losses
@@ -723,7 +724,7 @@ function sample(){
     const g=W[Math.floor((j*.6180339887%1)*W.length)],p=net(g.x),e=g.x.exit;
     g.x.exit=fix(e+(g.lg?dir:-dir)*g.tk,g.tk);const q=net(g.x);if(q<=0)g.x.exit=e;else gp+=q-p}
   // today's trades all closed before now: slide the day back to fit
-  const now=Date.now(),mine=S.trades.filter(x=>x.account==='SAMPLE-50K'),late=Math.max(0,...mine.map(x=>x.close-now));
+  const now=Date.now(),mine=S.trades.filter(x=>x.account===ACCT),late=Math.max(0,...mine.map(x=>x.close-now));
   if(late)mine.forEach(x=>{if(x.open>=t0){x.open-=late+5*6e4;x.close-=late+5*6e4}});
   save();boot();
 }
