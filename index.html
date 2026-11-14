@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
+<script>try{var t=localStorage.getItem('isx.theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script><!-- Settings › Appearance, before the first paint (ui.js keeps it in step) -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="JOURNAL">
@@ -973,6 +974,7 @@ function settingsForm(){
   <div class="ui-set">
     <div><span><b>Trading day</b><small>When a new trading day starts (local time)</small></span><select data-f="roll" aria-label="Trading day rollover">${[0,16,17,18].map(h=>`<option value="${h}"${h===S.roll?' selected':''}>${h?pad(h)+':00':'midnight'}</option>`).join('')}</select></div>
     <div><span><b>Daily max loss</b><small>Your stop for the day in the pre-market plan. Leave blank to use your median red day</small></span><input data-f="maxl" type="number" min="0" step="any" inputmode="decimal" placeholder="Auto" aria-label="Daily max loss in dollars" value="${S.maxLoss||''}"></div>
+    ${UI.appearance()}
     <div><span><b>Sync</b><small>${window.ISXSync?.state==='ok'?'On · this app syncs across your devices':'Keep every app the same on all your devices'}</small></span><span class="ui-set-btns"><button type="button" data-a="sync">SYNC…</button></span></div>
     <div><span><b>Backup</b><small>Saved on this device. Download a copy, or restore one.</small></span><span class="ui-set-btns"><button type="button" data-a="bak">BACKUP JSON</button><button type="button" data-a="imp">RESTORE</button></span></div>
     <div><span><b>Delete everything</b><small>Removes all of this app's data on this device.</small></span><span class="ui-set-btns"><button type="button" class="ui-danger" data-a="clear">CLEAR ALL</button></span></div>
