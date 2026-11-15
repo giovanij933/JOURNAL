@@ -441,7 +441,8 @@ function render(){
   $('[data-f=range]').innerHTML=Object.entries(RANGES).map(([k,v])=>`<option value="${k}"${k===U.range?' selected':''}>${v}</option>`).join('')+(U.range in RANGES?'':`<option value="${U.range}" selected>${dlabel(U.range)}</option>`);
   $('#scope').textContent=`Statistics for ${U.acct==='all'?'All Accounts':U.acct} — ${RANGES[U.range]||dlabel(U.range)}`+(s.dk.length?` · ${dlabel(s.dk[0])} → ${dlabel(s.dk.at(-1))}`:'');
 
-  UI.paint($('#top'),heroToday(),{now:true});
+  // Up next, the session Start would begin, right under Today: the same card in every app (UI.upNext)
+  UI.paint($('#top'),heroToday()+UI.upNext({app:'journal'}),{now:true});
   UI.paint($('#app'),`${S.trades.length?'':`<div class="card empty"><p class="h">No trades logged</p><p class="dim">Add a trade, import a CSV, or load a sample: a year of trades from a profitable futures trader.</p><button class="pri" data-a="add">+ Trade</button> <button data-a="imp">Import</button> <button data-a="sample">Load sample</button></div>`}
 <section class="g g4">
  <div class="card"><p class="h">Wins</p><div class="k">Trades</div><div class="big">${nw}</div>
