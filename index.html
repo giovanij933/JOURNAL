@@ -133,6 +133,13 @@ dialog.rvd{width:min(680px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
 .rv ol,.rv ul{margin:0 0 8px;padding-left:22px}.rv li{margin:0 0 6px}.rv li::marker{color:var(--dim)}
 .rv .tr{display:block;color:var(--dim);font-size:12px}
 .rv blockquote{margin:0 0 8px;padding:2px 0 2px 12px;border-left:2px solid var(--border);white-space:pre-wrap}
+/* the weekly review's day by day: a row per weekday, each opening its daily review, a bar on one scale for its result */
+.rv .wkl{list-style:none;margin:0 0 8px;padding:0}.rv .wkl li{margin:0;padding:0 0 6px;border-bottom:1px solid var(--line)}
+dialog.rvd .rv button.wkd{display:grid;grid-template-columns:minmax(7.5em,auto) 5em 1fr auto;align-items:center;gap:10px;width:100%;min-height:40px;padding:6px 0 0;background:none;border:0;border-radius:0;text-align:left;font-size:inherit;letter-spacing:0}
+.rv .wkl li.off{display:grid;grid-template-columns:minmax(7.5em,auto) 1fr;gap:10px;padding:10px 0;color:var(--dim)}
+.rv .wbr{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.rv .wb{display:block;height:100%;border-radius:3px;background:var(--success)}.rv .wb.neg{background:var(--error)}.rv .wb:not(.pos):not(.neg){background:var(--dim)}
+.rv .wkh{font-size:12px;color:var(--dim)}
+dialog.rvd .rv button.wko,dialog.rvd .rvh .rvw{border-radius:999px;padding:9px 14px;font-size:13px}
 .fa2 span{margin-right:auto}
 /* pre-market plan: the review's sections, plus the max-loss field, the focus rule and a checklist to tick */
 .pm-ml{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -817,7 +824,8 @@ function review(day){
     out+=sec('My week',`<p>This week I traded ${pl(wk.length,'day')} for ${$$(wp)}: ${wk.filter(k=>D[k].p>0).length} green, ${wk.filter(k=>D[k].p<0).length} red.`+
       (wk.length>1?` My best day was ${wn(by[0])} (${$$(r2(D[by[0]].p))}), my worst ${wn(by.at(-1))} (${$$(r2(D[by.at(-1)].p))}).`:'')+'</p>'+
       (PW.length?`<p>I opened my pre-market plan on ${PW.length} of ${pl(wk.length,'day')}${PL.length?` and stayed inside my max loss on ${inside===PL.length?(inside===1?'it':'all of them'):`${inside} of ${PL.length}`}`:''}. `+
-        `My focus rules: ${PW.map(k=>esc(S.plans[k].short)).join('; ')}.</p>`:"<p>I didn't open a pre-market plan this week.</p>"))}
+        `My focus rules: ${PW.map(k=>esc(S.plans[k].short)).join('; ')}.</p>`:"<p>I didn't open a pre-market plan this week.</p>")+
+      `<p><button type="button" class="wko" data-a="wkgo" data-v="${ws}">Open the weekly review</button></p>`)}
   // questions, most specific first
   const q=['Did every trade follow my plan? Which one didn\'t, and why?'];
   if(pnl<0&&!(P?.loss>0))q.push('Did I stop at my daily loss limit, or keep going?');
@@ -834,10 +842,111 @@ function reviewForm(day){
   const D=rvDays();if(!D.length)return toast('No trades to review yet');
   day=D.includes(day)?day:rvDefault();const i=D.indexOf(day);
   dlg.classList.add('rvd');dlg.addEventListener('close',()=>dlg.classList.remove('rvd'),{once:true});
-  dlg.innerHTML=`<div class="rvh"><h3>Daily review · ${dlabel(day)}</h3>
+  dlg.innerHTML=`<div class="rvh"><h3>Daily review · ${dlabel(day)}</h3><button type="button" class="rvw" data-a="wkgo" data-v="${wkStart(day)}" aria-label="This day's week: the weekly review">Week</button>
     <button type="button" data-a="rvgo" data-v="${D[i-1]||''}" ${i>0?'':'disabled'} aria-label="Previous trading day">&lt;</button><button type="button" data-a="rvgo" data-v="${D[i+1]||''}" ${i<D.length-1?'':'disabled'} aria-label="Next trading day">&gt;</button></div>
     <div id="rvb">${review(day)}</div>
     <div class="fa2"><span><button type="button" data-a="rvcopy">Copy</button></span><button type="button" data-a="rvnote" data-v="${day}">Write notes</button><button type="button" class="pri" data-a="x">Done</button></div>`;
+  if(!dlg.open)dlg.showModal();
+  dlg.querySelector('#rvb').scrollTop=0;dlg.scrollTop=0;
+}
+/* ---------- weekly review: the week as one script (the weekend's plan row, on TODAY and in Up next) ----------
+   The daily review's voice and order over a Monday-to-Sunday week: the week in numbers, against my last 8 weeks, day by
+   day (each day opens its daily review), what went well, what to look at, my plans, patterns in the week's trades
+   (contract, morning or later, long or short), my notes, and questions for next week. In the account filter. */
+const wkStart=day=>addd(day,-((pd(day).getDay()+6)%7));
+const rvWeeks=()=>[...new Set(rvDays().map(wkStart))].sort();
+function wkDefault(){const W=rvWeeks(),t=wkStart(tday(Date.now()));return W.includes(t)?t:W.filter(w=>w<=t).at(-1)||W.at(-1)}
+// "Nov 9 – 13, 2026", or across months "Oct 27 – Nov 2, 2026": the week's trading days, Monday to Friday when there are none
+function wlab(ws){const D=rvDays().filter(d=>d>=ws&&d<=addd(ws,6)),a=pd(D[0]||ws),b=pd(D.at(-1)||addd(ws,4));
+  return `${a.toLocaleDateString('en-US',{month:'short',day:'numeric'})} – ${a.getMonth()===b.getMonth()?b.getDate():b.toLocaleDateString('en-US',{month:'short',day:'numeric'})}, ${b.getFullYear()}`}
+function weekReview(ws){
+  const every=S.trades.map(t=>({...t,pnl:net(t),day:tday(t.close)})),all=U.acct==='all'?every:every.filter(t=>t.account===U.acct),we=addd(ws,6);
+  const onDay=(A,k)=>A.filter(t=>t.day===k).sort((a,b)=>a.close-b.close),T=all.filter(t=>t.day>=ws&&t.day<=we).sort((a,b)=>a.close-b.close);
+  const $$=v=>`<b class="${cls(v)}">${usd(v,1)}</b>`,pl=(k,w)=>`${k} ${w}${k===1?'':'s'}`,hm=ms=>new Date(ms).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null,m=v=>v<1?'under a minute':Math.round(v)+' min',sec=(h,b)=>b?`<section class="rv"><h4>${h}</h4>${b}</section>`:'';
+  const wn=k=>pd(k).toLocaleDateString('en-US',{weekday:'long'}),md=k=>pd(k).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}),and=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+' and '+a.at(-1);
+  const D={};all.forEach(t=>{(D[t.day]??={p:0,n:0}).p+=t.pnl;D[t.day].n++});Object.values(D).forEach(x=>x.p=r2(x.p));
+  const days=Object.keys(D).filter(k=>k>=ws&&k<=we).sort(),n=T.length,W=T.filter(t=>t.pnl>0),L=T.filter(t=>t.pnl<0),pnl=r2(T.reduce((a,t)=>a+t.pnl,0));
+  const fees=r2(T.reduce((a,t)=>a+t.fee+t.comm,0)),gd=days.filter(k=>D[k].p>0),rd=days.filter(k=>D[k].p<0),long=k=>pd(k).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
+  if(!n)return sec('The week','<p>No trades this week.</p>');
+  // the week
+  let out=sec('The week',`<p>From <b>${long(days[0])}</b>${days.length>1?` to <b>${long(days.at(-1))}</b>`:''} I traded ${pl(days.length,'day')}${U.acct==='all'?'':` on ${esc(U.acct)}`} and finished ${$$(pnl)} net: `+
+    `${gd.length} green, ${rd.length} red. ${pl(n,'trade')}: ${W.length} won, ${L.length} lost (${Math.round(W.length/n*100)}% won).${fees?` Fees and commissions came to ${usd(fees)}.`:''}</p>`);
+  // in context: my last 8 weeks with trades, and the run of green or red weeks
+  const WK={};Object.keys(D).forEach(k=>{const w=wkStart(k);(WK[w]??={p:0,d:0}).p+=D[k].p;WK[w].d++});
+  const pw=Object.keys(WK).filter(w=>w<ws).sort().slice(-8),ap=avg(pw.map(w=>WK[w].p)),ad=avg(pw.map(w=>WK[w].d));
+  let st=0;for(const w of Object.keys(WK).filter(w=>w<=ws).sort().reverse()){const g=Math.sign(WK[w].p);if(!g||(st&&Math.sign(st)!==g))break;st+=g}
+  const best=Object.keys(WK).length>3&&Object.keys(WK).every(w=>w===ws||WK[w].p<pnl);
+  out+=sec('In context',pw.length?`<p>Over my last ${pl(pw.length,'week')} I averaged ${$$(r2(ap))} a week over ${Math.round(ad*10)/10} trading days, so this week was ${pnl>ap?'<b>better</b> than usual':pnl<ap?'<b>worse</b> than usual':'<b>about average</b>'}.`+
+    `${best?' <b>My best week in this journal.</b>':''}${Math.abs(st)>=2?` That's ${Math.abs(st)} ${st>0?'green':'red'} weeks in a row.`:''}</p>`:'<p>This is the first week in my journal, so there\'s nothing to compare it with yet.</p>');
+  // day by day, each opening its daily review; a bar for each day's result on one scale, and the week's running total
+  const big=Math.max(...days.map(k=>Math.abs(D[k].p)),1),wd=Array.from({length:7},(_,i)=>addd(ws,i)).filter((k,i)=>i<5||D[k]);let run=0,peak=-Infinity,pkd='';
+  const rows=wd.map(k=>{if(!D[k])return `<li class="off"><span>${md(k)}</span><span>No trades</span></li>`;run=r2(run+D[k].p);if(run>peak){peak=run;pkd=k}
+    return `<li><button type="button" class="wkd" data-a="rvgo" data-v="${k}" aria-label="${md(k)}: ${pl(D[k].n,'trade')}, ${usd(D[k].p,1)}. Open the daily review"><span>${md(k)}</span><span>${pl(D[k].n,'trade')}</span>`+
+      `<span class="wbr"><i class="wb ${cls(D[k].p)}" style="width:${(Math.abs(D[k].p)/big*100).toFixed(1)}%"></i></span><b class="${cls(D[k].p)}">${usd(D[k].p,1)}</b></button><span class="tr">week ${usd(run,1)}</span></li>`}).join('');
+  const gave=days.length>1&&peak>0?r2(peak-pnl):0,gaveBig=gave>=Math.max(100,peak*.25);
+  out+=sec('Day by day',`<ul class="wkl">${rows}</ul><p class="wkh">Tap a day for its daily review.</p>`+(days.length>1?`<p>${peak<=0?'I was never up on the week.':pkd===days.at(-1)?'I finished the week at its high.':`My week peaked at ${$$(peak)} after ${wn(pkd)}${gaveBig?`; I gave back <b class="neg">${usd(gave)}</b> from there`:''}.`}</p>`:''));
+  // each day's own checks (the daily review's), against my usual trades a day before this week
+  const an=avg(Object.keys(D).filter(k=>k<ws).sort().slice(-20).map(k=>D[k].n)),Lk={};days.forEach(k=>Lk[k]=dayLook(onDay(all,k),an));
+  const gaveD=days.filter(k=>Lk[k].gaveBig),fastD=days.filter(k=>Lk[k].fast.length),nf=fastD.reduce((a,k)=>a+Lk[k].fast.length,0),overD=days.filter(k=>Lk[k].over),runD=days.filter(k=>Lk[k].lsMax>=3);
+  const mins=t=>(t.close-t.open)/6e4,hw=avg(W.map(mins)),hl=avg(L.map(mins));
+  const PW=days.filter(k=>S.plans[k]),PL=PW.filter(k=>S.plans[k].loss>0),past=PL.filter(k=>hitAt(onDay(every,k),S.plans[k].loss)>=0&&r2(onDay(every,k).reduce((a,t)=>a+t.pnl,0))<-S.plans[k].loss),inside=PL.filter(k=>hitAt(onDay(every,k),S.plans[k].loss)<0);
+  const bd=[...days].sort((a,b)=>D[b].p-D[a].p),bt=T.reduce((a,t)=>t.pnl>(a?.pnl??-Infinity)?t:a,null),wt=T.reduce((a,t)=>t.pnl<(a?.pnl??Infinity)?t:a,null),good=[],look=[];
+  if(days.length>1&&gd.length===days.length)good.push('Every day I traded was green.');
+  if(D[bd[0]].p>0)good.push(`Best day: ${wn(bd[0])}, ${$$(D[bd[0]].p)} on ${pl(D[bd[0]].n,'trade')}.`);
+  if(bt&&bt.pnl>0)good.push(`Best trade: ${wn(bt.day)} ${hm(bt.open)} ${bt.side} ${esc(bt.contract)} for ${$$(bt.pnl)}${bt.note?` — <q>${esc(bt.note)}</q>`:''}.`);
+  if(hw!=null&&hl!=null&&hw>hl)good.push(`I let winners run (${m(hw)} on average) and cut losers faster (${m(hl)}).`);
+  if(PL.length&&inside.length===PL.length)good.push(`I stayed inside my max loss on every day I set one (${pl(PL.length,'day')}).`);
+  if(L.length&&!fastD.length)good.push('No quick re-entries after a loss all week.');
+  if(pnl>0&&days.length>1&&!gaveD.length)good.push('No day gave back a big part of its high.');
+  if(D[bd.at(-1)].p<0)look.push(`Worst day: ${wn(bd.at(-1))}, ${$$(D[bd.at(-1)].p)} on ${pl(D[bd.at(-1)].n,'trade')}.`);
+  if(wt&&wt.pnl<0)look.push(`Worst trade: ${wn(wt.day)} ${hm(wt.open)} ${wt.side} ${esc(wt.contract)} for ${$$(wt.pnl)}${wt.note?` — <q>${esc(wt.note)}</q>`:''}.`);
+  if(hw!=null&&hl!=null&&hl>hw)look.push(`Losers were held longer than winners (${m(hl)} vs ${m(hw)}).`);
+  if(past.length)look.push(`I went past my max-loss line on ${and(past.map(wn))}.`);
+  if(gaveD.length)look.push(`I gave back a big part of my high on ${and(gaveD.map(wn))} (${usd(r2(gaveD.reduce((a,k)=>a+Lk[k].gave,0)))} in all).`);
+  if(nf)look.push(`${pl(nf,'trade')} ${nf===1?'was':'were'} entered within 5 minutes of a loss, on ${and(fastD.map(wn))}.`);
+  if(overD.length)look.push(`More trades than usual on ${and(overD.map(k=>`${wn(k)} (${D[k].n})`))}, against about ${Math.round(an)} a day.`);
+  if(runD.length)look.push(`Three or more losses in a row on ${and(runD.map(wn))}.`);
+  out+=sec('What went well',good.length?`<ul>${good.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>Nothing stands out in the numbers. Look at my execution instead.</p>');
+  out+=sec('What to look at',look.length?`<ul>${look.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>No warning signs in the numbers.</p>');
+  // my pre-market plans
+  const full=PW.filter(k=>CHK.every(([c])=>ticked(S.plans[k],c))).length;
+  out+=sec('My plans',PW.length?`<p>I opened my pre-market plan on ${PW.length} of ${pl(days.length,'day')}${PL.length?` and stayed inside my max loss on ${inside.length===PL.length?(inside.length===1?'it':'all of them'):`${inside.length} of ${PL.length}`}`:''}. `+
+    `${full===PW.length?'I ticked my whole checklist each time.':`I ticked my whole checklist on ${full} of them.`}</p><p>My focus rules: ${PW.map(k=>`${wn(k).slice(0,3)} <b>${esc(S.plans[k].short)}</b>`).join('; ')}.</p>`:"<p>I didn't open a pre-market plan this week.</p>");
+  // patterns in the week's trades: which contract, morning or later, long or short (each only when both sides have trades)
+  const grp=f=>{const G={};T.forEach(t=>{const k=f(t);(G[k]??={p:0,n:0}).p+=t.pnl;G[k].n++});return Object.entries(G).map(([k,v])=>[k,r2(v.p),v.n])};
+  const line=G=>G.map(([k,p,c])=>`${k} ${$$(p)} (${pl(c,'trade')})`).join(' · '),pat=[];
+  const C=grp(t=>esc(t.contract)).sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]));if(C.length>1)pat.push(`By contract: ${line(C)}.`);
+  const H=grp(t=>new Date(t.open).getHours()<11?'Before 11 AM':'From 11 AM').sort((a,b)=>a[0]<b[0]?-1:1);if(H.length>1)pat.push(`${line(H)}.`);
+  const SD=grp(t=>t.side==='Short'?'Shorts':'Longs');if(SD.length>1)pat.push(`${line(SD)}.`);
+  const late=H.find(h=>h[0]==='From 11 AM'),early=H.find(h=>h[0]!=='From 11 AM');
+  if(late&&early&&late[1]<0&&early[1]>0)pat.push('My mornings made the money and later trades gave some back.');
+  out+=sec('Patterns',n>=4&&pat.length?pat.map(x=>`<p>${x}</p>`).join(''):'');
+  // the morning check-ins, when there are a few for these days
+  let C2=[];try{C2=(JSON.parse(localStorage.getItem('isx.checkin.v1'))?.log||[]).filter(e=>days.includes(e.day))}catch(e){}
+  if(C2.length>=2){const sl=r2(avg(C2.map(e=>+e.sleep||0))),red=C2.filter(e=>D[e.day].p<0);
+    out+=sec('My state',`<p>I checked in on ${C2.length} of these days and slept <b>${sl} h</b> on average.${red.length?` Before my red days: ${r2(avg(red.map(e=>+e.sleep||0)))} h.`:''}</p>`)}
+  const N=days.filter(k=>S.notes[k]);
+  out+=sec('My notes',N.length?N.map(k=>`<p class="tr">${md(k)}</p><blockquote>${esc(S.notes[k])}</blockquote>`).join(''):'<p>No notes for these days.</p>');
+  // questions for next week, most specific first
+  const q=['What is my one focus for next week?'];
+  if(D[bd.at(-1)].p<0)q.push(`What happened on ${wn(bd.at(-1))}, and which rule would have stopped it?`);
+  if(gaveD.length)q.push(`What made me keep trading after a good start on ${and(gaveD.map(wn))}?`);
+  if(nf)q.push('What was I feeling before the quick re-entries, and how do I slow down next time?');
+  if(late&&early&&late[1]<0&&early[1]>0)q.push('Should I stop after 11 AM next week, or trade smaller then?');
+  if(D[bd[0]].p>0)q.push(`What did I do on ${wn(bd[0])} that I can repeat?`);
+  q.push('One thing to repeat next week. One thing to cut.');
+  out+=sec('Questions to answer',`<ol>${q.map(x=>`<li>${x}</li>`).join('')}</ol>`);
+  return out;
+}
+function weekForm(ws){
+  const W=rvWeeks();if(!W.length)return toast('No trades to review yet');
+  ws=W.includes(ws)?ws:wkDefault();const i=W.indexOf(ws),last=rvDays().filter(d=>d>=ws&&d<=addd(ws,6)).at(-1);
+  dlg.classList.add('rvd');dlg.addEventListener('close',()=>dlg.classList.remove('rvd'),{once:true});
+  dlg.innerHTML=`<div class="rvh"><h3 tabindex="-1">Weekly review · ${wlab(ws)}</h3>
+    <button type="button" data-a="wkgo" data-v="${W[i-1]||''}" ${i>0?'':'disabled'} aria-label="Previous week">&lt;</button><button type="button" data-a="wkgo" data-v="${W[i+1]||''}" ${i<W.length-1?'':'disabled'} aria-label="Next week">&gt;</button></div>
+    <div id="rvb">${weekReview(ws)}</div>
+    <div class="fa2"><span><button type="button" data-a="rvcopy">Copy</button></span><button type="button" data-a="rvgo" data-v="${last}">Last day</button><button type="button" class="pri" data-a="x">Done</button></div>`;
   if(!dlg.open)dlg.showModal();
   dlg.querySelector('#rvb').scrollTop=0;dlg.scrollTop=0;
 }
@@ -962,7 +1071,7 @@ function planRows(){
     if(wd%6===0){if(!S.trades.length)return null;
       const ws=addd(day,-((wd+6)%7)),D={};S.trades.forEach(t=>{const k=tday(t.close);if(k>=ws&&k<=day)D[k]=(D[k]||0)+net(t)});
       const k=Object.keys(D),v=r2(k.reduce((a,d)=>a+D[d],0));
-      return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last day',act:'review'}}
+      return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last week',act:'week'}}
     const P=premkt(day),p=S.plans[day],f=p||P.pick,loss=p?p.loss:P.loss;
     // art: the focus rule's picture, for TODAY's plan (rulemap.js)
     return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>ticked(p,k)),art:window.RLG?.art(f.focus||f.k,f.rule,f.why)||undefined};
@@ -990,7 +1099,7 @@ const ACT={
   set:()=>settingsForm(),sync:()=>{dlg.close();document.getElementById('isx-sync')?.click()},
   add:()=>tradeForm(),plan:()=>planForm(),imp:()=>$('#file').click(),x:()=>dlg.close(),sample,csv:exportCSV,
   note:()=>noteForm(U.range in RANGES?tday(Date.now()):U.range),
-  review:()=>reviewForm(rvDefault()),rvgo:v=>v&&reviewForm(v),rvnote:v=>{dlg.classList.remove('rvd');noteForm(v)},
+  review:()=>reviewForm(rvDefault()),rvgo:v=>v&&reviewForm(v),week:()=>weekForm(wkDefault()),wkgo:v=>v&&weekForm(v),rvnote:v=>{dlg.classList.remove('rvd');noteForm(v)},
   rvcopy:()=>{const t=reviewText();(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Review copied'),()=>toast('Copy failed — select the text instead'))},
   bak:()=>dl(`journal-backup-${ymd(new Date())}.json`,JSON.stringify(S),'application/json'),
   clear:()=>UI.confirm({title:'Delete everything?',body:'All trades, notes and plans on this device are deleted. Back up first if you might want them.',ok:'Delete all',danger:true})
@@ -1038,7 +1147,7 @@ window.UI?.backdrop?.({tint:['--accent','--success','--info']});   // ARCHITECTU
 UI.planner('journal',[KEY],planRows);
 // another ISIONXXX app can send you straight to an action here (REWIRE's LOG buttons): #do=<action> or a message
 // 'today' (from TODAY's rings and timeline): drop any card filters and show just today, as a chip you can clear
-function doAct(a){if(!/^\w+$/.test(a||''))return;if(a==='today'){U.x={};U.range=tday(Date.now());setMonth(Date.now());U.page=0;render();return}const b=document.querySelector(`[data-a="${a}"],[data-act="${a}"]`);if(b)b.click()}
+function doAct(a){if(!/^\w+$/.test(a||''))return;if(a==='week')return weekForm(wkDefault());if(a==='today'){U.x={};U.range=tday(Date.now());setMonth(Date.now());U.page=0;render();return}const b=document.querySelector(`[data-a="${a}"],[data-act="${a}"]`);if(b)b.click()}
 addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.isx==='do')doAct(e.data.act)});
 {const m=/do=(\w+)/.exec(location.hash);if(m){history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>doAct(m[1]),0)}}
 /* ---------- today at a glance (shared hero, timeline and motion from ui.js) ---------- */
