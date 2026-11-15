@@ -140,6 +140,7 @@ dialog.rvd .rv button.wkd{display:grid;grid-template-columns:minmax(7.5em,auto) 
 .rv .wbr{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.rv .wb{display:block;height:100%;border-radius:3px;background:var(--success)}.rv .wb.neg{background:var(--error)}.rv .wb:not(.pos):not(.neg){background:var(--dim)}
 .rv .wkh{font-size:12px;color:var(--dim)}
 dialog.rvd .rv button.wko,dialog.rvd .rvh .rvw{border-radius:999px;padding:9px 14px;font-size:13px}
+.rvh .rvok{font-size:12px;font-weight:600;color:var(--success-text);white-space:nowrap}
 .fa2 span{margin-right:auto}
 /* pre-market plan: the review's sections, plus the max-loss field, the focus rule and a checklist to tick */
 .pm-ml{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -269,7 +270,7 @@ function load(){
   return state({});
 }
 // plans: the pre-market plan of each trading day; maxLoss: the daily stop from Settings (null: from my red days)
-function state(s){return {trades:(Array.isArray(s.trades)?s.trades:[]).map(numT).filter(okT),notes:keep(s.notes,v=>typeof v==='string'),roll:s.roll??18,plans:keep(s.plans,isO),maxLoss:s.maxLoss>0?s.maxLoss:null}}
+function state(s){return {trades:(Array.isArray(s.trades)?s.trades:[]).map(numT).filter(okT),notes:keep(s.notes,v=>typeof v==='string'),roll:s.roll??18,plans:keep(s.plans,isO),reviews:keep(s.reviews,v=>typeof v==='number'),maxLoss:s.maxLoss>0?s.maxLoss:null}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));UI.replan()}catch(e){toast('Storage write failed — take a backup')}}
 // trading day: anything at/after the roll hour belongs to the next date (Sunday 6 PM open -> Monday)
 function tday(ms){const d=new Date(ms);if(S.roll&&d.getHours()>=S.roll)d.setDate(d.getDate()+1);return ymd(d)}
@@ -943,10 +944,10 @@ function weekForm(ws){
   const W=rvWeeks();if(!W.length)return toast('No trades to review yet');
   ws=W.includes(ws)?ws:wkDefault();const i=W.indexOf(ws),last=rvDays().filter(d=>d>=ws&&d<=addd(ws,6)).at(-1);
   dlg.classList.add('rvd');dlg.addEventListener('close',()=>dlg.classList.remove('rvd'),{once:true});
-  dlg.innerHTML=`<div class="rvh"><h3 tabindex="-1">Weekly review · ${wlab(ws)}</h3>
+  dlg.innerHTML=`<div class="rvh"><h3 tabindex="-1">Weekly review · ${wlab(ws)}${S.reviews[ws]?' <span class="rvok">✓ Reviewed</span>':''}</h3>
     <button type="button" data-a="wkgo" data-v="${W[i-1]||''}" ${i>0?'':'disabled'} aria-label="Previous week">&lt;</button><button type="button" data-a="wkgo" data-v="${W[i+1]||''}" ${i<W.length-1?'':'disabled'} aria-label="Next week">&gt;</button></div>
     <div id="rvb">${weekReview(ws)}</div>
-    <div class="fa2"><span><button type="button" data-a="rvcopy">Copy</button></span><button type="button" data-a="rvgo" data-v="${last}">Last day</button><button type="button" class="pri" data-a="x">Done</button></div>`;
+    <div class="fa2"><span><button type="button" data-a="rvcopy">Copy</button></span><button type="button" data-a="rvgo" data-v="${last}">Last day</button><button type="button" class="pri" data-a="wkdone" data-v="${ws}">Done</button></div>`;
   if(!dlg.open)dlg.showModal();
   dlg.querySelector('#rvb').scrollTop=0;dlg.scrollTop=0;
 }
@@ -1071,7 +1072,7 @@ function planRows(){
     if(wd%6===0){if(!S.trades.length)return null;
       const ws=addd(day,-((wd+6)%7)),D={};S.trades.forEach(t=>{const k=tday(t.close);if(k>=ws&&k<=day)D[k]=(D[k]||0)+net(t)});
       const k=Object.keys(D),v=r2(k.reduce((a,d)=>a+D[d],0));
-      return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last week',act:'week'}}
+      return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last week',act:'week',...(S.reviews[ws]?{done:true}:{})}}
     const P=premkt(day),p=S.plans[day],f=p||P.pick,loss=p?p.loss:P.loss;
     // art: the focus rule's picture, for TODAY's plan (rulemap.js)
     return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>ticked(p,k)),art:window.RLG?.art(f.focus||f.k,f.rule,f.why)||undefined};
@@ -1099,7 +1100,9 @@ const ACT={
   set:()=>settingsForm(),sync:()=>{dlg.close();document.getElementById('isx-sync')?.click()},
   add:()=>tradeForm(),plan:()=>planForm(),imp:()=>$('#file').click(),x:()=>dlg.close(),sample,csv:exportCSV,
   note:()=>noteForm(U.range in RANGES?tday(Date.now()):U.range),
-  review:()=>reviewForm(rvDefault()),rvgo:v=>v&&reviewForm(v),week:()=>weekForm(wkDefault()),wkgo:v=>v&&weekForm(v),rvnote:v=>{dlg.classList.remove('rvd');noteForm(v)},
+  review:()=>reviewForm(rvDefault()),rvgo:v=>v&&reviewForm(v),week:()=>weekForm(wkDefault()),wkgo:v=>v&&weekForm(v),
+  // the weekly review read: the week is reviewed (Up next and TODAY's plan say so), and the sheet closes
+  wkdone:v=>{const was=!!S.reviews[v];if(v&&!was){S.reviews={...S.reviews,[v]:Date.now()};save();render()}dlg.close();if(v&&!was)toast('Week reviewed ✓')},rvnote:v=>{dlg.classList.remove('rvd');noteForm(v)},
   rvcopy:()=>{const t=reviewText();(navigator.clipboard?.writeText(t)||Promise.reject()).then(()=>toast('Review copied'),()=>toast('Copy failed — select the text instead'))},
   bak:()=>dl(`journal-backup-${ymd(new Date())}.json`,JSON.stringify(S),'application/json'),
   clear:()=>UI.confirm({title:'Delete everything?',body:'All trades, notes and plans on this device are deleted. Back up first if you might want them.',ok:'Delete all',danger:true})
