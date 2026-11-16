@@ -1146,7 +1146,6 @@ $('#file').addEventListener('change',async e=>{
 
 function boot(){setMonth(S.trades.length?Math.max(...S.trades.map(t=>t.close)):Date.now());render()}
 boot();
-window.UI?.backdrop?.({tint:['--accent','--success','--info']});   // ARCHITECTURE.md 2m
 UI.planner('journal',[KEY],planRows);
 // another ISIONXXX app can send you straight to an action here (REWIRE's LOG buttons): #do=<action> or a message
 // 'today' (from TODAY's rings and timeline): drop any card filters and show just today, as a chip you can clear
