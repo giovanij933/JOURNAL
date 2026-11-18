@@ -1,5 +1,5 @@
 // Bump the version string whenever you change index.html so clients pick up the new shell.
-const CACHE = 'isx-journal-v106';
+const CACHE = 'isx-journal-v107';
 // all ISIONXXX apps share one site and one cache storage: only ever clear this app's own old caches
 const MINE = k => k.startsWith('isx-journal-');
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon.svg', './db.js', './sync.js', './ui.js', './ui.css', './three.module.min.js', './apple-touch-icon.png', './icon-192.png', './icon-512.png', './rulemap.js'];
