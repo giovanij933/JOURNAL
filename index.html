@@ -87,7 +87,7 @@ button:hover,select:hover{border-color:var(--accent);color:var(--accent-text)}
 .cap{font-size:10.5px;color:var(--dim);margin-top:6px;letter-spacing:.04em}
 .chart *{vector-effect:non-scaling-stroke}
 .chart .ln{fill:none;stroke-width:1.5}
-.hl{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:4px}
+.hl{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-top:4px}.hl.hlh{display:grid;text-align:center;white-space:nowrap}
 .chart .z{stroke:var(--line2);stroke-dasharray:4 4}
 .cg .ln{stroke:var(--green)}.cg .ar{fill:var(--success-soft)}
 .cr .ln{stroke:var(--red)}.cr .ar{fill:var(--error-soft)}
@@ -348,6 +348,15 @@ function line(vals,c,at){
   return `<svg class="chart ${c}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polygon class="ar" points="${x(0)},${y(0)} ${pts} ${x(n-1)},${y(0)}"/><line class="z" x1="0" x2="${w}" y1="${y(0)}" y2="${y(0)}"/><polyline class="ln" points="${pts}"/>${hits}</svg>`;
 }
 function bars(vals,signed,at){const B=bucket(vals,60);return bars0(B.v,signed,at&&(i=>at(...B.r[i])))+cap(B.k)}
+// Time of day: only the hours that were traded, with an hour either side and six at the least. All 24 left the trading
+// session a few thin bars in a mostly empty card. Each bar keeps its own hour for the filter (at gets the hour, not the
+// bar's place), and each gets a label under it, every second or third one when there are many
+function hrBars(H,hr,at){
+  const t=H.map((v,i)=>v?i:-1).filter(i=>i>=0);let a=t.length?Math.max(0,t[0]-1):0,b=t.length?Math.min(23,t.at(-1)+1):23;
+  while(b-a<5){if(a>0)a--;if(b-a<5&&b<23)b++}
+  const n=b-a+1,ev=n>16?4:n>10?2:1;
+  return bars0(H.slice(a,b+1),1,i=>at(a+i))+`<div class="hl hlh" style="grid-template-columns:repeat(${n},1fr)">${H.slice(a,b+1).map((_,i)=>`<span>${i%ev?'':hr(a+i)}</span>`).join('')}</div>`;
+}
 function bars0(vals,signed,at){
   const w=600,h=160,p=6,n=vals.length;if(!n)return ND;
   const lo=Math.min(0,...vals),hi=Math.max(0,...vals),rg=hi-lo||1,step=(w-2*p)/n,bw=Math.min(180,step*.7);
@@ -497,7 +506,7 @@ ${(()=>{const B=brk(view(true,'hour')),BW=brk(view(true,'wd')),BI=brk(view(true,
   const pt=(k,lab,v)=>i=>({a:`data-a="xf" data-v="${k}:${i}"`,title:`${lab(i)}: ${usd(v[i],1)} — click to show only this`,off:U.x[k]!=null&&U.x[k]!==i});
   return `<section class="g g3">
  <div class="card"><p class="h">Time of day</p><div class="k">Net P&amp;L by entry hour</div><div class="big">${bh==null?'—':hr(bh)}</div>
-  ${bars0(B.hours,1,pt('hour',hr,B.hours))}<div class="hl"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>11 PM</span></div>
+  ${hrBars(B.hours,hr,pt('hour',hr,B.hours))}
   <div class="ev rule"><span class="dim">Best hour / worst hour</span><b><span class="pos">${hr(bh)}</span> / <span class="neg">${hr(wh)}</span></b></div></div>
  <div class="card"><p class="h">Day of week</p><div class="k">Net P&amp;L by weekday</div><div class="big">${bd==null?'—':DW[bd]}</div>
   ${bars0(BW.wd,1,pt('wd',i=>DW[i],BW.wd))}<div class="hl">${DW.map(d=>`<span>${d}</span>`).join('')}</div>
