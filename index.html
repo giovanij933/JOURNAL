@@ -54,10 +54,10 @@ button:hover,select:hover{border-color:var(--accent);color:var(--accent-text)}
 .empty{margin-bottom:12px;border-color:var(--border)}
 .empty p+p{margin-bottom:12px}
 
-.gauge{display:block;width:150px;max-width:100%;margin:6px auto 10px}
-.gauge path{fill:none;stroke-width:9}
-.s0{stroke:var(--line2)}.sg{stroke:var(--green)}.sr{stroke:var(--red)}.sd{stroke:var(--dim)}
-.gauge text{fill:var(--tx);font:600 17px var(--f)}
+.gauge{display:block;width:120px;max-width:100%;margin:8px auto 12px;overflow:visible}
+.gauge path{fill:none;stroke-width:11;stroke-linecap:round}
+.s0{stroke:var(--track)}.sg{stroke:var(--green)}.sr{stroke:var(--red)}.sd{stroke:var(--dim)}
+.gauge text{fill:var(--tx);font:700 22px var(--f);letter-spacing:-.02em}.gauge text.sm{font-size:16px}
 .lg{display:grid;grid-template-columns:14px 1fr auto 46px;align-items:center;padding:2px 0}
 .lg em{font-style:normal;color:var(--dim);text-align:right}
 .dot{display:inline-block;width:7px;height:7px}
@@ -322,12 +322,12 @@ function stats(T){
 }
 
 /* ---------- svg ---------- */
-const ARC='M12 62A50 50 0 0 1 112 62', ND='<div class="nd">No data</div>';
+const ARC='M60 10a50 50 0 1 1 0 100a50 50 0 1 1 0-100', ND='<div class="nd">No data</div>';
 // a segment can carry a cross-filter (f = 'key:value'): click it to filter, and it stays bright while the others dim
 function gauge(segs,label){
   let off=0;
   const arcs=segs.map(([v,c,f,t])=>{const a=`<path class="${c}${f?' pick'+(xoff(f)?' off':''):''}" d="${ARC}" pathLength="100" stroke-dasharray="${(v*100).toFixed(2)} 100" stroke-dashoffset="${(-off*100).toFixed(2)}"${f?` data-a="xf" data-v="${f}"`:''}>${t?`<title>${esc(t)}</title>`:''}</path>`;off+=v;return a}).join('');
-  return `<svg class="gauge" viewBox="0 0 124 70"><path class="s0" d="${ARC}"/>${arcs}<text x="62" y="60" text-anchor="middle">${label}</text></svg>`;
+  return `<svg class="gauge" viewBox="0 0 120 120"><path class="s0" d="${ARC}"/>${arcs}<text x="60" y="68" text-anchor="middle"${String(label).length>6?' class="sm"':''}>${label}</text></svg>`;
 }
 // a chart is ~600 px wide: more points than that only costs time and memory. Keep each bucket's low and high, in
 // order, so peaks and drawdowns still show.
