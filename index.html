@@ -824,7 +824,7 @@ function review(day){
   out+=sec('What went well',good.length?`<ul>${good.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>Nothing stands out in the numbers. Look at my execution instead.</p>');
   out+=sec('What to look at',look.length?`<ul>${look.map(x=>`<li>${x}</li>`).join('')}</ul>`:'<p>No warning signs in the numbers.</p>');
   // the morning check-in from TODAY, when there is one for this date
-  let ci=null;try{ci=(JSON.parse(localStorage.getItem('isx.checkin.v1'))?.log||[]).find(e=>e.day===day)}catch(e){}
+  let ci=UI.checkins().log.find(e=>e.day===day)||null;   // through UI.checkins: typed fields, never stored text as it is
   if(ci){const Q=['','poor','restless','OK','good','great'],E=['','drained','low','steady','good','charged'];
     out+=sec('My state',`<p>I slept <b>${ci.sleep} h</b> (${Q[ci.q]||'—'} sleep) and my energy was <b>${E[ci.energy]||'—'}</b>.${ci.sleep<7&&pnl<0?' Short sleep on a red day: worth watching if it repeats.':''}</p>`)}
   out+=sec('My notes',S.notes[day]?`<blockquote>${esc(S.notes[day])}</blockquote>`:'<p>No notes for this day yet.</p>');
@@ -934,7 +934,7 @@ function weekReview(ws){
   if(late&&early&&late[1]<0&&early[1]>0)pat.push('My mornings made the money and later trades gave some back.');
   out+=sec('Patterns',n>=4&&pat.length?pat.map(x=>`<p>${x}</p>`).join(''):'');
   // the morning check-ins, when there are a few for these days
-  let C2=[];try{C2=(JSON.parse(localStorage.getItem('isx.checkin.v1'))?.log||[]).filter(e=>days.includes(e.day))}catch(e){}
+  let C2=UI.checkins().log.filter(e=>days.includes(e.day));
   if(C2.length>=2){const sl=r2(avg(C2.map(e=>+e.sleep||0))),red=C2.filter(e=>D[e.day].p<0);
     out+=sec('My state',`<p>I checked in on ${C2.length} of these days and slept <b>${sl} h</b> on average.${red.length?` Before my red days: ${r2(avg(red.map(e=>+e.sleep||0)))} h.`:''}</p>`)}
   const N=days.filter(k=>S.notes[k]);
