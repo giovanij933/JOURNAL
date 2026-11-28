@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-vtbDO042/giDCdir93hkeyV4AKDZVdbSINpMjwkQBns=' 'sha256-YKNxntCA7AHjuB7OzQpqwb/8dSha2ZDMdqnDH/jBcyI='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-vtbDO042/giDCdir93hkeyV4AKDZVdbSINpMjwkQBns=' 'sha256-Rx3Sc4AH5PUQNlAUXDGX36M6XQ1GIMaRIpQpOipz9Kg='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
@@ -1088,15 +1088,17 @@ function planForm(){
 // TODAY's plan card: the pre-market plan on a trading weekday, the weekly review at the weekend. From the roll hour on,
 // the trading day is tomorrow's, so a second row carries that one until midnight (when the record is rebuilt anyway)
 function planRows(){
-  if(!S.trades.length&&!Object.keys(S.plans).length)return [];
+  // the pre-market plan for a day: with no trades yet it holds plain process rules (premkt), so it's the first step too.
+  // ahead: the plan for the next trading day, named (a weekend with nothing to review plans Monday)
+  const pre=(day,ahead)=>{const P=premkt(day),p=S.plans[day],f=p||P.pick,loss=p?p.loss:P.loss;
+    // art: the focus rule's picture, for TODAY's plan (rulemap.js)
+    return {title:'Pre-market plan',sub:`${ahead?pd(day).toLocaleDateString('en-US',{weekday:'long'})+' · ':''}Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>ticked(p,k)),art:window.RLG?.art(f.focus||f.k,f.rule,f.why)||undefined}};
   const row=ms=>{const day=tday(ms),wd=pd(day).getDay();
-    if(wd%6===0){if(!S.trades.length)return null;
+    if(wd%6===0){if(!S.trades.length)return pre(pmDay(),true);
       const ws=addd(day,-((wd+6)%7)),D={};S.trades.forEach(t=>{const k=tday(t.close);if(k>=ws&&k<=day)D[k]=(D[k]||0)+net(t)});
       const k=Object.keys(D),v=r2(k.reduce((a,d)=>a+D[d],0));
       return {title:'Weekly review',sub:k.length?`This week ${v>0?'+':''}${usd0(v)} · ${pls(k.length,'day')} · ${k.filter(d=>D[d]>0).length} green`:'No trades this week · look back at my last week',act:'week',...(S.reviews[ws]?{done:true}:{})}}
-    const P=premkt(day),p=S.plans[day],f=p||P.pick,loss=p?p.loss:P.loss;
-    // art: the focus rule's picture, for TODAY's plan (rulemap.js)
-    return {title:'Pre-market plan',sub:`Focus: ${f.short} · ${loss>0?'max −'+usd0(loss):'set a max loss'}`,act:'plan',done:!!p&&CHK.every(([k])=>ticked(p,k)),art:window.RLG?.art(f.focus||f.k,f.rule,f.why)||undefined};
+    return pre(day);
   };
   const now=new Date();
   if(!S.roll||now.getHours()>=S.roll)return [row(+now)];
