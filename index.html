@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-vtbDO042/giDCdir93hkeyV4AKDZVdbSINpMjwkQBns=' 'sha256-Rx3Sc4AH5PUQNlAUXDGX36M6XQ1GIMaRIpQpOipz9Kg='; object-src 'none'; base-uri 'self'">
+<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'sha256-vtbDO042/giDCdir93hkeyV4AKDZVdbSINpMjwkQBns=' 'sha256-LfloU+xjvOS5gjq6LkrczMTQ3jXtRHx8ajFv5IbgIVY='; object-src 'none'; base-uri 'self'">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
@@ -1173,7 +1173,10 @@ UI.planner('journal',[KEY],planRows);
 // another ISIONXXX app can send you straight to an action here (REWIRE's LOG buttons): #do=<action> or a message
 // 'today' (from TODAY's rings and timeline): drop any card filters and show just today, as a chip you can clear
 function doAct(a){if(!/^\w+$/.test(a||''))return;if(a==='week')return weekForm(wkDefault());if(a==='today'){U.x={};U.range=tday(Date.now());setMonth(Date.now());U.page=0;render();return}const b=document.querySelector(`[data-a="${a}"],[data-act="${a}"]`);if(b)b.click()}
-addEventListener('message',e=>{if(e.origin===location.origin&&e.data&&e.data.isx==='do')doAct(e.data.act)});
+// TODAY's Settings › Sample data (ISIONXXX ARCHITECTURE.md 2w): TODAY has asked already, so the sample loads without asking
+// again, then this app says so (TODAY redraws once every app has)
+addEventListener('message',e=>{if(e.origin!==location.origin||!e.data)return;if(e.data.isx==='do')doAct(e.data.act);
+  else if(e.data.isx==='sample'){sample();e.source?.postMessage({isx:'sampled'},location.origin)}});
 {const m=/do=(\w+)/.exec(location.hash);if(m){history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>doAct(m[1]),0)}}
 /* ---------- today at a glance (shared hero, timeline and motion from ui.js) ---------- */
 function heroToday(){
