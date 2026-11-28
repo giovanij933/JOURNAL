@@ -263,6 +263,14 @@ const isO=v=>!!v&&typeof v==='object'&&!Array.isArray(v),okT=t=>isO(t)&&[t.close
 // numbers saved as text (an older copy, a hand edit) are read as numbers first, so a real trade is never left out for that
 const numT=t=>isO(t)?{...t,...Object.fromEntries(['open','close','entry','exit','qty','mult','fee','comm'].filter(k=>typeof t[k]==='string'&&t[k].trim()!==''&&isFinite(t[k])).map(k=>[k,+t[k]]))}:t;
 const keep=(o,f)=>isO(o)?Object.fromEntries(Object.entries(o).filter(([,v])=>f(v))):{};
+// a restored file or a synced copy can hold anything in a trade's other fields, and the pages put them straight into
+// markup: a side that isn't Long or Short, an id with quotes in it or a quantity that's text could carry HTML into the
+// page (and run a script there, which could read every app's data). So every field is made what the app writes:
+// side Long or Short (as the CSV import reads it), ids letters, digits, - and _, numbers numbers, text text
+const sid=v=>String(v??'').replace(/[^\w-]/g,'_').slice(0,64)||uid(),fin=(v,d)=>Number.isFinite(v)?v:d;
+const fixT=t=>({...t,id:sid(t.id),side:/short|sell/i.test(String(t.side))?'Short':'Long',account:String(t.account??''),contract:String(t.contract??''),note:String(t.note??''),
+  qty:fin(t.qty,1),mult:fin(t.mult,SPEC[root(t.contract??'')]||1),fee:fin(t.fee,0),comm:fin(t.comm,0),open:fin(t.open,t.close)});
+const fixP=p=>({...p,focus:String(p.focus??''),rule:String(p.rule??''),short:String(p.short??''),why:String(p.why??''),loss:+p.loss>0?+p.loss:null,ticks:isO(p.ticks)?p.ticks:{}});
 let S=load();
 const U={acct:'all',stat:'all',range:'all',page:0,month:null,x:{}};   // x: cross-filters set by clicking a card (dres, hour, wd, inst, side)
 function load(){
@@ -270,7 +278,9 @@ function load(){
   return state({});
 }
 // plans: the pre-market plan of each trading day; maxLoss: the daily stop from Settings (null: from my red days)
-function state(s){return {trades:(Array.isArray(s.trades)?s.trades:[]).map(numT).filter(okT),notes:keep(s.notes,v=>typeof v==='string'),roll:s.roll??18,plans:keep(s.plans,isO),reviews:keep(s.reviews,v=>typeof v==='number'),maxLoss:s.maxLoss>0?s.maxLoss:null}}
+function state(s){const roll=s.roll==null?18:+s.roll;
+  return {trades:(Array.isArray(s.trades)?s.trades:[]).map(numT).filter(okT).map(fixT),notes:keep(s.notes,v=>typeof v==='string'),roll:Number.isInteger(roll)&&roll>=0&&roll<=23?roll:18,
+    plans:Object.fromEntries(Object.entries(keep(s.plans,isO)).map(([d,p])=>[d,fixP(p)])),reviews:keep(s.reviews,v=>typeof v==='number'),maxLoss:+s.maxLoss>0?+s.maxLoss:null}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));UI.replan()}catch(e){toast('Storage write failed — take a backup')}}
 // trading day: anything at/after the roll hour belongs to the next date (Sunday 6 PM open -> Monday)
 function tday(ms){const d=new Date(ms);if(S.roll&&d.getHours()>=S.roll)d.setDate(d.getDate()+1);return ymd(d)}
